@@ -2,11 +2,12 @@
 
 use ansi_term::Colour::{Red, Yellow};
 use anyhow::{Context, bail};
+use path_absolutize::Absolutize;
 use serde::Deserialize;
 use std::{
     collections::{HashMap, VecDeque},
     fs,
-    path::PathBuf,
+    path::{self, PathBuf},
 };
 
 use crate::{file::TrackedFile, git::Git};
@@ -93,12 +94,9 @@ pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
     // a config has already been included to break recursive-deps
     let mut config_map: HashMap<PathBuf, Typewriter> = HashMap::new();
 
-    // Track unprocessed linked configs
+    // Track unprocessed linked configs, our root is unprocessed
     let mut unproc_configs: VecDeque<PathBuf> = VecDeque::new();
-    unproc_configs.push_back(fs::canonicalize(&file_path)?);
-
-    // Original config
-    let root_file_path = fs::canonicalize(file_path)?;
+    unproc_configs.push_back(file_path.clone());
 
     // Go over all unprocessed configs
     while let Some(this_path) = unproc_configs.pop_front() {
@@ -111,7 +109,7 @@ pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
         let config = parse_single_config(&this_path)?;
 
         // Warn about unsued config
-        if !(this_path == root_file_path) && config.config.is_some() {
+        if !(this_path == file_path) && config.config.is_some() {
             println!(
                 "Warning: {}",
                 Yellow.paint(format!(
@@ -128,7 +126,7 @@ pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
             // Parent -> directory + back on the file path
             linked_path.pop();
             linked_path.push(&link.file);
-            linked_path = fs::canonicalize(linked_path)?;
+            linked_path = PathBuf::from(linked_path.absolutize()?);
 
             // Add this unprocessed path to the list for later checking..
             validate_path(&linked_path, &this_path)?;

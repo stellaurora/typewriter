@@ -3,7 +3,8 @@
 //! its referenced files to the currnet system
 
 use ansi_term::Colour::Red;
-use std::path::PathBuf;
+use path_absolutize::Absolutize;
+use std::path::{self, PathBuf};
 
 use anyhow::bail;
 
@@ -11,7 +12,7 @@ use crate::parse_config::parse_config;
 
 pub fn apply_command(file: String) -> anyhow::Result<()> {
     // Validate file path
-    let path = PathBuf::from(file);
+    let path = PathBuf::from(PathBuf::from(file).absolutize()?);
 
     if !path.exists() {
         bail!(
