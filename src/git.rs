@@ -5,6 +5,7 @@ use serde::Deserialize;
 /// Configuration option for git-related
 /// options under typewriter
 #[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 pub struct Git {
     // Whether or not on every typewriter ``apply`` command to create
     // a new commit of ``apply_commit_format`` format in the git repository
@@ -29,6 +30,7 @@ pub struct Git {
 /// Will be filled on commit with formatted
 /// data.
 #[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 struct GitCommitFormat(String);
 
 impl Default for GitCommitFormat {

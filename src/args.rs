@@ -18,11 +18,7 @@ pub struct Args {
 pub enum Commands {
     /// Initialises a basic template file in the directory
     Init {
-        /// Directory to create the template file in
-        #[arg(short, long, default_value = ".")]
-        dir: String,
-
-        /// Name of the template file
+        /// Path to the template file to create
         #[arg(short, long, default_value = "typewriter.toml")]
         file: String,
     },
