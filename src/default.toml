@@ -1,0 +1,44 @@
+# This is the default auto-generated configuration file for
+# typewriter, Please read the usage guide to learn more about
+# what can be used here!
+
+# [config]
+# Configuration generally for the entire typewriter configuration,
+# for simplicities sake, this can only be in the exact typewriter config
+# referenced by the commands, not in any included.
+
+# [config.git]
+# Git related configuration options
+[config.git]
+
+# Whether to automatically commit on git on every apply
+apply_commit=true
+
+# Format of message for apply_commit
+# Supports ``chrono`` format specifiers
+# if not provided, is the one supplied here by default
+apply_commit_format="feat: typewriter apply on %Y-%m-%d %H:%M:%S"
+
+# Whether or not to include what files were changed
+# in the commit message body
+apply_commit_changed=true
+
+# [[link]]
+# Links to another typewriter configuration file (in same format)
+# and essentially "includes/runs" it as part of this configuration.
+[[link]]
+
+# File paths are relative to this configuration file.
+file="typewriter_other.toml"
+
+# [[file]]
+# References a file and it's intended location in the system
+# on running  apply  will "update" the intended location with the file
+# referenced
+[[file]]
+
+# Source file
+file="source.file"
+
+# Destination location
+destination="~/.config/source.file"

@@ -1,0 +1,20 @@
+[package]
+name = "typewriter"
+version = "0.1.0"
+edition = "2024"
+authors = ["stellaurora <jeancharlduplessis@gmail.com>"]
+description = "A file-based minimal dotfile management program"
+
+[dependencies]
+# Deserialisation support for TOML files
+serde = { version = "1.0", features = ["derive"] }
+
+# TOML files are what is used to configure typewriter setups
+toml = "0.9"
+
+# Argument parsing helper library
+clap = { version = "4.5", features = ["derive", "wrap_help"] }
+
+# Pretty printing
+ansi_term = "0.12"
+
