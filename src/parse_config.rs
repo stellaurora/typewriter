@@ -1,13 +1,13 @@
 //! Parsing configuration file for typewriter
 
-use ansi_term::Colour::{Red, Yellow};
 use anyhow::{Context, bail};
+use log::warn;
 use path_absolutize::Absolutize;
 use serde::Deserialize;
 use std::{
     collections::{HashMap, VecDeque},
     fs,
-    path::{self, PathBuf},
+    path::PathBuf,
 };
 
 use crate::{file::TrackedFile, git::Git};
@@ -57,17 +57,13 @@ pub struct ConfigLink {
     file: String,
 }
 
-fn validate_path(file_path: &PathBuf, origin_file: &PathBuf) -> anyhow::Result<()> {
+fn validate_link(file_path: &PathBuf, origin_file: &PathBuf) -> anyhow::Result<()> {
     // Check if path exists, else error.
     if !file_path.exists() {
         bail!(
-            "{} {} {}",
-            Red.paint(format!(
-                "Referenced file {:?} by {:?} doesn't exist, maybe try running",
-                file_path, origin_file
-            )),
-            Red.underline().paint("init"),
-            Red.paint("first")
+            "File {:?} referenced by link in configuration file {:?} does not exist",
+            file_path,
+            origin_file
         );
     }
 
@@ -78,63 +74,85 @@ fn validate_path(file_path: &PathBuf, origin_file: &PathBuf) -> anyhow::Result<(
 fn parse_single_config(file_path: &PathBuf) -> anyhow::Result<Typewriter> {
     // Read in content and try parse using toml
     let file_content = fs::read_to_string(&file_path)
-        .with_context(|| format!("while trying to read config {:?}", file_path))?;
+        .with_context(|| format!("While trying to read configuration file {:?}", file_path))?;
     let config: Typewriter = toml::from_str(&file_content)
-        .with_context(|| format!("while trying to parse config {:?}", file_path))?;
+        .with_context(|| format!("While trying to parse configuration file {:?}", file_path))?;
     Ok(config)
+}
+
+/// Processes a list of config links adding them to
+/// the unprocessed configs vecdeque if they are not
+/// already in the config_map supplied.
+///
+/// The current path is supplied for logging purposes.
+fn process_links(
+    unprocessed_configs: &mut VecDeque<PathBuf>,
+    current_path: &PathBuf,
+    links: &Vec<ConfigLink>,
+    config_map: &mut HashMap<PathBuf, Typewriter>,
+) -> anyhow::Result<()> {
+    for link in links {
+        // Create this linked path from the perspective of this path
+        let parent = current_path
+            .parent()
+            .context("Configuration file has no parent directory")?;
+        let linked_path = PathBuf::from(parent.join(&link.file).absolutize()?);
+
+        // Add this unprocessed path to the list for later checking..
+        validate_link(&linked_path, &current_path)?;
+        if !config_map.contains_key(&linked_path) && !unprocessed_configs.contains(&linked_path) {
+            unprocessed_configs.push_back(linked_path);
+        }
+    }
+
+    Ok(())
 }
 
 /// Parses the configuration file supplied in as per
 /// the expected config in typewriter
 ///
-/// The result is all of the included typewriter files together.
-/// Does validation/handles validation on paths linked, but not on the root file_path provided.
+/// The result is all of the included typewriter files together in a vec.
 pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
+    if !file_path.exists() {
+        bail!(
+            "Supplied root configuration file {:?} does not exist",
+            file_path
+        );
+    }
+
     // Hashmap of configs, since we need to track whether or not
     // a config has already been included to break recursive-deps
     let mut config_map: HashMap<PathBuf, Typewriter> = HashMap::new();
 
     // Track unprocessed linked configs, our root is unprocessed
-    let mut unproc_configs: VecDeque<PathBuf> = VecDeque::new();
-    unproc_configs.push_back(file_path.clone());
+    let mut unprocessed_configs: VecDeque<PathBuf> = VecDeque::new();
+    unprocessed_configs.push_back(file_path.clone());
 
     // Go over all unprocessed configs
-    while let Some(this_path) = unproc_configs.pop_front() {
+    while let Some(current_path) = unprocessed_configs.pop_front() {
         // Already processed, skip
-        if config_map.contains_key(&this_path) {
+        if config_map.contains_key(&current_path) {
             continue;
         }
 
         // Process this config, add its other configs to the unproc list
-        let config = parse_single_config(&this_path)?;
+        let config = parse_single_config(&current_path)?;
 
         // Warn about unsued config
-        if !(this_path == file_path) && config.config.is_some() {
-            println!(
-                "Warning: {}",
-                Yellow.paint(format!(
-                    "Unused global config in {:?}, since it is not the root file",
-                    this_path
-                ))
+        if !(current_path == file_path) && config.config.is_some() {
+            warn!(
+                "Unused global config in {:?}, since it is not the root file",
+                current_path
             )
         }
 
-        for link in &config.links {
-            // Create this linked path from the perspective of this path
-            let mut linked_path = this_path.clone();
-
-            // Parent -> directory + back on the file path
-            linked_path.pop();
-            linked_path.push(&link.file);
-            linked_path = PathBuf::from(linked_path.absolutize()?);
-
-            // Add this unprocessed path to the list for later checking..
-            validate_path(&linked_path, &this_path)?;
-            if !config_map.contains_key(&linked_path) && !unproc_configs.contains(&linked_path) {
-                unproc_configs.push_back(linked_path);
-            }
-        }
-        config_map.insert(this_path, config);
+        process_links(
+            &mut unprocessed_configs,
+            &current_path,
+            &config.links,
+            &mut config_map,
+        )?;
+        config_map.insert(current_path, config);
     }
 
     Ok(config_map.into_values().collect())

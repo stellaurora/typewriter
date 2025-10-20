@@ -15,15 +15,16 @@ toml = { version = "0.9", features = ["serde", "parse"] }
 # Argument parsing helper library
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
 
-# Pretty printing
-ansi_term = "0.12"
-
 # Easy command input handling
 inquire = "0.9.1"
 
-# Easy error handling
+# Easy error handling/Logging
 anyhow = "1.0"
+log = "0.4"
+env_logger = "0.11"
 
 # Absolute path-ing without canonicalise
 path-absolutize = { version = "3.1.1", features = ["once_cell_cache"] }
+
+
 

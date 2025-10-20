@@ -1,7 +1,6 @@
 //! Initialises a typewriter system
 //! with a basic configuration file
 
-use ansi_term::Colour::{Green, Red};
 use anyhow::bail;
 use inquire::Confirm;
 use std::{fs, path::PathBuf};
@@ -31,15 +30,12 @@ pub fn init_command(file: String) -> anyhow::Result<()> {
     }
 
     if !generate_output {
-        bail!("{}", Red.paint("Not generating init template"));
+        bail!("Not generating template to {:?}, file already exists", path);
     }
 
     // Write default template
-    fs::write(path, DEFAULT_TEMPLATE)?;
-    println!(
-        "{}",
-        Green.paint("Successfully wrote default template to file")
-    );
+    fs::write(&path, DEFAULT_TEMPLATE)?;
+    println!("Wrote default template file to {:?}", path);
 
     Ok(())
 }
