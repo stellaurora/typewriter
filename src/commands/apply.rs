@@ -5,8 +5,6 @@
 use path_absolutize::Absolutize;
 use std::path::PathBuf;
 
-use anyhow::bail;
-
 use crate::parse_config::parse_config;
 
 pub fn apply_command(file: String) -> anyhow::Result<()> {

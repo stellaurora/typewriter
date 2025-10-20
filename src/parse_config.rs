@@ -19,6 +19,10 @@ use crate::{file::TrackedFile, git::Git};
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Typewriter {
+    // Source file
+    #[serde(skip)]
+    src: PathBuf,
+
     // Global typewriter configuration options.
     config: Option<Config>,
 
@@ -54,7 +58,7 @@ pub struct Config {
 #[serde(deny_unknown_fields)]
 pub struct ConfigLink {
     // The file that is being linked to
-    file: String,
+    file: PathBuf,
 }
 
 fn validate_link(file_path: &PathBuf, origin_file: &PathBuf) -> anyhow::Result<()> {
@@ -75,8 +79,18 @@ fn parse_single_config(file_path: &PathBuf) -> anyhow::Result<Typewriter> {
     // Read in content and try parse using toml
     let file_content = fs::read_to_string(&file_path)
         .with_context(|| format!("While trying to read configuration file {:?}", file_path))?;
-    let config: Typewriter = toml::from_str(&file_content)
+    let mut config: Typewriter = toml::from_str(&file_content)
         .with_context(|| format!("While trying to parse configuration file {:?}", file_path))?;
+
+    // Add dir to the config path for file.
+    config
+        .files
+        .iter_mut()
+        .try_for_each(|tracked_file| tracked_file.add_typewriter_dir(file_path))?;
+
+    // Add source file for later usage, ensure absolutized
+    config.src = PathBuf::from(file_path.absolutize()?);
+
     Ok(config)
 }
 
@@ -146,6 +160,7 @@ pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
             )
         }
 
+        // Process all of the linked files and add them to unprocessed_configs.
         process_links(
             &mut unprocessed_configs,
             &current_path,
