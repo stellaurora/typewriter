@@ -8,17 +8,18 @@ use log::info;
 use path_absolutize::Absolutize;
 use serde::Deserialize;
 
-use crate::{config::ROOT_CONFIG, file::TrackedFile};
+use crate::{apply::strategy::ApplyStrategy, config::ROOT_CONFIG, file::TrackedFile};
 
 /// Which strategy should be used for the temporary
 /// copy stage?
 #[derive(Deserialize, Debug)]
 pub enum TemporaryCopyStrategy {
-    // Copy the current working file to the temporary directory
-    // with the same name
+    // Copy the current working files to the temporary directory
+    // with the same name while proceeding through the operation
     #[serde(rename = "copy_current")]
     CopyCurrent,
 
+    // Dont do anything for this stage.. No temporary copying
     #[serde(rename = "disabled")]
     Disabled,
 }
@@ -35,10 +36,14 @@ pub fn rename_to_temp_copy(path: &PathBuf) -> String {
 }
 
 pub fn copy_current_strategy(file: &TrackedFile) -> anyhow::Result<()> {
-    println!("{:?}", ROOT_CONFIG.get_config().apply.temp_dir);
-
     // Make tempdir path for this file
-    let mut tempcopy_path = PathBuf::from(ROOT_CONFIG.get_config().apply.temp_dir.absolutize()?);
+    let mut tempcopy_path = PathBuf::from(
+        ROOT_CONFIG
+            .get_config()
+            .apply
+            .apply_metadata_dir
+            .absolutize()?,
+    );
 
     fs::create_dir_all(&tempcopy_path)
         .with_context(|| "While trying to make temporary directory for copying")?;
@@ -58,15 +63,44 @@ pub fn copy_current_strategy(file: &TrackedFile) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn run_temporary_copy_strategy(
-    strategy: &TemporaryCopyStrategy,
-    file: &TrackedFile,
-) -> anyhow::Result<()> {
-    // Different handler per strategy.
-    match strategy {
-        TemporaryCopyStrategy::CopyCurrent => copy_current_strategy(file)?,
-        TemporaryCopyStrategy::Disabled => {}
-    };
+fn copy_current_strategy_cleanup(file: &TrackedFile) -> anyhow::Result<()> {
+    // Path for this tempcopy.
+    let mut tempcopy_path = PathBuf::from(
+        ROOT_CONFIG
+            .get_config()
+            .apply
+            .apply_metadata_dir
+            .absolutize()?,
+    );
+    tempcopy_path.push(rename_to_temp_copy(&file.destination));
+    fs::remove_file(&tempcopy_path)
+        .with_context(|| "While trying to remove temporary copy of file in temporary directory")?;
+
+    info!(
+        "Deleted temporary copy of file {:?} in temporary directory with name {:?}",
+        file.destination, tempcopy_path
+    );
 
     Ok(())
+}
+
+impl ApplyStrategy for TemporaryCopyStrategy {
+    fn run_before_copy_file(self: &Self, file: &TrackedFile) -> anyhow::Result<()> {
+        match self {
+            TemporaryCopyStrategy::CopyCurrent => copy_current_strategy(file),
+            TemporaryCopyStrategy::Disabled => Ok(()),
+        }
+    }
+
+    fn run_after_copy_file(self: &Self, file: &TrackedFile) -> anyhow::Result<()> {
+        if !ROOT_CONFIG.get_config().apply.cleanup_files {
+            return Ok(());
+        }
+
+        // Call cleanup function for copy strategy
+        match self {
+            TemporaryCopyStrategy::CopyCurrent => copy_current_strategy_cleanup(file),
+            TemporaryCopyStrategy::Disabled => Ok(()),
+        }
+    }
 }

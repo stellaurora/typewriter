@@ -9,11 +9,9 @@ use serde::Deserialize;
 #[derive(Deserialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Git {
-    // Whether or not on every typewriter ``apply`` command to create
-    // a new commit of ``apply_commit_format`` format in the git repository
-    // containing this root configuration file.
+    // Strategy of git commit handling
     #[serde(default)]
-    apply_commit: bool,
+    commit_strategy: bool,
 
     // The format of the message for apply_commit
     // Supports ``chrono`` format specifiers for now.

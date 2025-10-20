@@ -1,15 +1,24 @@
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
+use ansi_term::Color::{Black, White};
+use anyhow::Context;
 use serde::Deserialize;
 
 use crate::{
-    apply::tempcopy::{TemporaryCopyStrategy, run_temporary_copy_strategy},
-    config::ROOT_CONFIG,
+    apply::{
+        checkdiff::FileCheckDiffStrategy, strategy::ApplyStrategy, tempcopy::TemporaryCopyStrategy,
+    },
     file::TrackedFileList,
 };
 
+// Strategy trait for dyn handling
+pub mod strategy;
+
 // Temporary copy handling
 pub mod tempcopy;
+
+// Checking diff first before writing
+pub mod checkdiff;
 
 /// Configuration options to apply command
 /// files
@@ -27,14 +36,13 @@ pub struct Apply {
     #[serde(default = "default_is_true")]
     pub confirm_apply: bool,
 
-    // Directory to place temporary files in
-    // this is relative to the root config file.
+    // Directory to place metadata/temporary files in
+    // for the apply command
     #[serde(default = "default_tempfile_dir")]
-    pub temp_dir: PathBuf,
+    pub apply_metadata_dir: PathBuf,
 
-    // Strategy for temporary copy
-    // Will only be used if disable_temporary_copy
-    // is not set to true
+    // Strategy for temporary copying functionality
+    // for backup if failure occurs while applying
     #[serde(default)]
     pub temp_copy_strategy: TemporaryCopyStrategy,
 
@@ -47,6 +55,29 @@ pub struct Apply {
     // the end of the apply if it succeeded?
     #[serde(default = "default_is_true")]
     pub cleanup_files: bool,
+
+    // Name of the checkdiff storage file for
+    // checkdiff in the metadata path
+    #[serde(default = "default_checkdiff_file_name")]
+    pub checkdiff_file_name: String,
+
+    // Strategy of the checkdiff for
+    // checking if the file was modified
+    // out of the system just-in-case to not
+    // overwrite potential wanted files.
+    #[serde(default)]
+    pub checkdiff_strategy: FileCheckDiffStrategy,
+
+    // Skip if the entry is new to the checkdiff file
+    // and the checkdiff file was already initialised
+    //
+    // so if the file was not originally added to typewriter
+    // yet or hasn't been applied yet, then do not prompt for
+    // overwrite.
+    //
+    // (first initialisation will always prompt for a non-disabled Strategy)
+    #[serde(default)]
+    pub skip_checkdiff_new: bool,
 }
 
 /// I think we have to sadly re-duplicate serde default here
@@ -56,16 +87,24 @@ impl Default for Apply {
         Self {
             auto_skip_unable_apply: Default::default(),
             confirm_apply: default_is_true(),
-            temp_dir: default_tempfile_dir(),
+            apply_metadata_dir: default_tempfile_dir(),
             temp_copy_strategy: Default::default(),
             temp_copy_path_delim: default_temp_copy_path_delim(),
             cleanup_files: default_is_true(),
+            checkdiff_file_name: default_checkdiff_file_name(),
+            checkdiff_strategy: Default::default(),
+            skip_checkdiff_new: Default::default(),
         }
     }
 }
 
 fn default_is_true() -> bool {
     true
+}
+
+/// Default checksum storage file name
+fn default_checkdiff_file_name() -> String {
+    String::from(".checkdiff")
 }
 
 /// Default delimiter for directory path in tempcopy file names
@@ -79,13 +118,49 @@ fn default_tempfile_dir() -> PathBuf {
 }
 
 /// Run apply copy
-pub fn apply(file_list: TrackedFileList) -> anyhow::Result<()> {
-    // Sequential order.. Pray nothing goes wrong :prayge:
-    for file in file_list.0 {
-        // Step 1: Temporary copy for backup <- hopefully saves
-        // stuff if things do go wrong/power off etc.
-        run_temporary_copy_strategy(&ROOT_CONFIG.get_config().apply.temp_copy_strategy, &file)?;
+pub fn apply(files: TrackedFileList, strategies: Vec<&dyn ApplyStrategy>) -> anyhow::Result<()> {
+    // Run before copy strategies
+    strategies
+        .iter()
+        .map(|strategy| strategy.run_before_copy(&files))
+        .collect::<anyhow::Result<()>>()?;
+
+    // Process each file
+    for file in &files.0 {
+        // Before copy individual file strategies
+        strategies
+            .iter()
+            .map(|strategy| strategy.run_before_copy_file(&file))
+            .collect::<anyhow::Result<()>>()?;
+
+        // Copy file to destination..
+        fs::copy(&file.file, &file.destination).with_context(|| {
+            format!(
+                "While trying to apply {:?} to {:?} referenced by config {:?}",
+                file.file, file.destination, file.src
+            )
+        })?;
+
+        println!(
+            "[{}] {:?} to {:?} {}",
+            White.bold().paint("COPIED"),
+            file.file,
+            file.destination,
+            Black.dimmed().paint(format!("[SRC: {:?}]", file.src))
+        );
+
+        // After copy individual file strategies
+        strategies
+            .iter()
+            .map(|strategy| strategy.run_after_copy_file(&file))
+            .collect::<anyhow::Result<()>>()?;
     }
+
+    // Run after copy strategies
+    strategies
+        .iter()
+        .map(|strategy| strategy.run_after_copy(&files))
+        .collect::<anyhow::Result<()>>()?;
 
     Ok(())
 }

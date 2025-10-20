@@ -26,5 +26,14 @@ env_logger = "0.11"
 # Absolute path-ing without canonicalise
 path-absolutize = { version = "3.1.1", features = ["once_cell_cache"] }
 
+# Hashing for file-diff
+xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
+
+# Pretty println!
+ansi_term = "0.12"
+
+# RON for metadata serialization/deserialization and storage.
+ron = "0.11.0"
+
 
 

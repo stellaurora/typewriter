@@ -118,7 +118,7 @@ impl PermSkip for PathBuf {
         }
 
         // Question user whether to skip
-        let result = Confirm::new(
+        let to_skip = Confirm::new(
             format!(
                 "Skip file {:?} referenced in configuration file {:?}?",
                 self, src
@@ -129,7 +129,7 @@ impl PermSkip for PathBuf {
         .prompt()?;
 
         // Print if we skipped the file since the user would probably like to know.
-        if result {
+        if to_skip {
             info!(
                 "Skipped file {:?} referenced in configuration file {:?}",
                 self, src

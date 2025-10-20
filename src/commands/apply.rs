@@ -8,7 +8,12 @@ use log::info;
 use path_absolutize::Absolutize;
 use std::path::PathBuf;
 
-use crate::{apply::apply, config::ROOT_CONFIG, file::TrackedFileList, parse_config::parse_config};
+use crate::{
+    apply::{apply, strategy::ApplyStrategy},
+    config::ROOT_CONFIG,
+    file::TrackedFileList,
+    parse_config::parse_config,
+};
 
 /// Questions the user whether or not to continue the apply based on
 /// the configuration
@@ -54,6 +59,13 @@ pub fn apply_command(file: String) -> anyhow::Result<()> {
         bail!("Aborting apply operation");
     }
 
+    // Get strategies
+    let config = ROOT_CONFIG.get_config();
+    let strategies: Vec<&dyn ApplyStrategy> = vec![
+        &config.apply.temp_copy_strategy,
+        &config.apply.checkdiff_strategy,
+    ];
+
     // Run apply
-    apply(total_list)
+    apply(total_list, strategies)
 }
