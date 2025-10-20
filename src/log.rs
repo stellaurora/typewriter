@@ -6,7 +6,7 @@ use env_logger::{
 use std::io::Write;
 
 pub fn setup_logging() {
-    env_logger::Builder::from_env(Env::default().default_filter_or("warn"))
+    env_logger::Builder::from_env(Env::default().default_filter_or("debug"))
         .format(|buf, record| {
             let level_color = Some(Color::from(match record.level() {
                 log::Level::Error => AnsiColor::Red,

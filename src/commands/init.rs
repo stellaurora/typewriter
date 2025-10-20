@@ -3,6 +3,7 @@
 
 use anyhow::bail;
 use inquire::Confirm;
+use log::info;
 use std::{fs, path::PathBuf};
 
 /// Default file just include it as a str..
@@ -18,15 +19,10 @@ pub fn init_command(file: String) -> anyhow::Result<()> {
 
     // File already exists, prompt user
     if path.exists() {
-        let exists_prompt =
+        generate_output =
             Confirm::new("Supplied template path already exists, overwrite this file?")
                 .with_default(false)
-                .prompt();
-
-        generate_output = match exists_prompt {
-            Ok(should_overwrite) => should_overwrite,
-            Err(error) => bail!(error),
-        }
+                .prompt()?;
     }
 
     if !generate_output {
@@ -35,7 +31,7 @@ pub fn init_command(file: String) -> anyhow::Result<()> {
 
     // Write default template
     fs::write(&path, DEFAULT_TEMPLATE)?;
-    println!("Wrote default template file to {:?}", path);
+    info!("Wrote default template file to {:?}", path);
 
     Ok(())
 }

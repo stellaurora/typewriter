@@ -1,10 +1,12 @@
 //! Git integration with typewriter
 
+use std::ops::{Deref, DerefMut};
+
 use serde::Deserialize;
 
 /// Configuration option for git-related
 /// options under typewriter
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[serde(deny_unknown_fields)]
 pub struct Git {
     // Whether or not on every typewriter ``apply`` command to create
@@ -38,5 +40,19 @@ impl Default for GitCommitFormat {
         // Default format should contain time and mention of typewriter apply
         // causing the commit.
         Self(String::from("feat: typewriter apply on %Y-%m-%d %H:%M:%S"))
+    }
+}
+
+impl Deref for GitCommitFormat {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for GitCommitFormat {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

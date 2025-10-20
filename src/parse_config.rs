@@ -10,43 +10,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::{file::TrackedFile, git::Git};
-
-/// Configuration for the a file in the typewriter system
-///
-/// config is not utilised outside of the root
-/// file referenced directly by commands.
-#[derive(Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct Typewriter {
-    // Source file
-    #[serde(skip)]
-    src: PathBuf,
-
-    // Global typewriter configuration options.
-    config: Option<Config>,
-
-    // Links to other files to include in the configuration
-    #[serde(rename = "link", default)]
-    links: Vec<ConfigLink>,
-
-    // Files to update in the system
-    #[serde(rename = "file", default)]
-    files: Vec<TrackedFile>,
-}
-
-/// Global typewriter configuration options.
-///
-/// Can only be used by the root typewriter
-/// configuration file referenced in commands
-/// in order to keep tracking configuration simple
-#[derive(Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-pub struct Config {
-    // Git related configuration options
-    // such as automatic commits on apply.
-    git: Git,
-}
+use crate::config::*;
 
 /// Links to other typewriter configuration files
 ///
@@ -57,7 +21,6 @@ pub struct Config {
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct ConfigLink {
-    // The file that is being linked to
     file: PathBuf,
 }
 
@@ -79,6 +42,7 @@ fn parse_single_config(file_path: &PathBuf) -> anyhow::Result<Typewriter> {
     // Read in content and try parse using toml
     let file_content = fs::read_to_string(&file_path)
         .with_context(|| format!("While trying to read configuration file {:?}", file_path))?;
+
     let mut config: Typewriter = toml::from_str(&file_content)
         .with_context(|| format!("While trying to parse configuration file {:?}", file_path))?;
 
@@ -87,9 +51,6 @@ fn parse_single_config(file_path: &PathBuf) -> anyhow::Result<Typewriter> {
         .files
         .iter_mut()
         .try_for_each(|tracked_file| tracked_file.add_typewriter_dir(file_path))?;
-
-    // Add source file for later usage, ensure absolutized
-    config.src = PathBuf::from(file_path.absolutize()?);
 
     Ok(config)
 }
@@ -126,7 +87,8 @@ fn process_links(
 /// the expected config in typewriter
 ///
 /// The result is all of the included typewriter files together in a vec.
-pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
+/// which are all of the "linked" ones, and the first half of the tuple is the root.
+pub fn parse_config(file_path: PathBuf) -> anyhow::Result<(Typewriter, TypewriterConfigs)> {
     if !file_path.exists() {
         bail!(
             "Supplied root configuration file {:?} does not exist",
@@ -170,5 +132,9 @@ pub fn parse_config(file_path: PathBuf) -> anyhow::Result<Vec<Typewriter>> {
         config_map.insert(current_path, config);
     }
 
-    Ok(config_map.into_values().collect())
+    // Get root back from config_map, shouldn't ever not exist (doesn't make sense)
+    Ok((
+        config_map.remove(&file_path).unwrap(),
+        config_map.into_values().collect(),
+    ))
 }
