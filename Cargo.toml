@@ -38,3 +38,9 @@ ron = "0.11.0"
 # Regex for variable matching
 regex = "1"
 
+[profile.release]
+# Try optimise harder for even better performance..
+codegen-units = 1
+lto = true
+panic = "abort"
+
