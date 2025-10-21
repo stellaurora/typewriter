@@ -2,7 +2,6 @@
 
 use anyhow::{Context, bail};
 use log::warn;
-use path_absolutize::Absolutize;
 use serde::Deserialize;
 use std::{
     collections::{HashMap, VecDeque},
@@ -10,7 +9,7 @@ use std::{
     path::PathBuf,
 };
 
-use crate::config::*;
+use crate::{cleanpath::CleanPath, config::*};
 
 /// Links to other typewriter configuration files
 ///
@@ -78,7 +77,7 @@ fn process_links(
         let parent = current_path
             .parent()
             .context("Configuration file has no parent directory")?;
-        let linked_path = PathBuf::from(parent.join(&link.file).absolutize()?);
+        let linked_path = parent.join(&link.file).clean_path()?;
 
         // Add this unprocessed path to the list for later checking..
         validate_link(&linked_path, &current_path)?;

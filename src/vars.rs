@@ -10,10 +10,11 @@ use std::{
 
 use anyhow::{Context, bail};
 use inquire::Confirm;
-use path_absolutize::Absolutize;
 use serde::{Deserialize, de};
 
-use crate::{apply::variables::VariableApplyingStrategy, config::ROOT_CONFIG};
+use crate::{
+    apply::variables::VariableApplyingStrategy, cleanpath::CleanPath, config::ROOT_CONFIG,
+};
 
 /// Helper list for interfacing with a list of variables
 #[derive(Deserialize, Debug, Default)]
@@ -163,7 +164,7 @@ impl Variable {
     /// of source file for debugging info
     pub fn add_typewriter_dir(self: &mut Self, file_path: &PathBuf) -> anyhow::Result<()> {
         // Absolutize the joined file path for both fields.
-        self.src = PathBuf::from(file_path.absolutize()?);
+        self.src = file_path.clean_path()?;
         Ok(())
     }
 }

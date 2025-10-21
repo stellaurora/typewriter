@@ -5,11 +5,11 @@
 use anyhow::bail;
 use inquire::Confirm;
 use log::info;
-use path_absolutize::Absolutize;
 use std::path::PathBuf;
 
 use crate::{
     apply::{apply, strategy::ApplyStrategy, variables::VariableApplying},
+    cleanpath::CleanPath,
     config::ROOT_CONFIG,
     parse_config::parse_config,
 };
@@ -31,7 +31,7 @@ fn continue_apply_prompt(num_applications: usize) -> anyhow::Result<bool> {
 
 pub fn apply_command(file: String) -> anyhow::Result<()> {
     // Validate file path
-    let path = PathBuf::from(PathBuf::from(file).absolutize()?);
+    let path = PathBuf::from(file).clean_path()?;
 
     // Parse configs to config structs.
     let (root, configs) = parse_config(path)?;

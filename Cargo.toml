@@ -1,6 +1,6 @@
 [package]
 name = "typewriter"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 authors = ["stellaurora <jeancharlduplessis@gmail.com>"]
 description = "A file-based minimal configuration management program"
@@ -25,6 +25,7 @@ env_logger = "0.11"
 
 # Absolute path-ing without canonicalise
 path-absolutize = { version = "3.1.1", features = ["once_cell_cache"] }
+tilde-expand = "0.1.1"
 
 # Hashing for file-diff
 xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }

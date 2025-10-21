@@ -11,12 +11,12 @@ use std::{
 
 use anyhow::{Context, bail};
 use inquire::Confirm;
-use path_absolutize::Absolutize;
 use serde::{Deserialize, Serialize};
 use xxhash_rust::xxh3::Xxh3;
 
 use crate::{
     apply::strategy::ApplyStrategy,
+    cleanpath::CleanPath,
     config::ROOT_CONFIG,
     file::{TrackedFile, TrackedFileList},
 };
@@ -55,12 +55,10 @@ impl FileCheckDiffStrategy {
         // Get config to get file path.
         let apply_conf = &ROOT_CONFIG.get_config().apply;
 
-        Ok(PathBuf::from(
-            apply_conf
-                .apply_metadata_dir
-                .join(&apply_conf.checkdiff_file_name)
-                .absolutize()?,
-        ))
+        Ok(apply_conf
+            .apply_metadata_dir
+            .join(&apply_conf.checkdiff_file_name)
+            .clean_path()?)
     }
 
     fn read_checksum_entries() -> anyhow::Result<ChecksumEntries> {

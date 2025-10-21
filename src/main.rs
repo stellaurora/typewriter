@@ -6,6 +6,7 @@ use crate::{commands::init, log::setup_logging};
 mod args;
 
 // Configuration parsing from toml
+mod cleanpath;
 mod config;
 mod parse_config;
 

@@ -70,7 +70,7 @@ pub struct Apply {
     #[serde(default)]
     pub checkdiff_strategy: FileCheckDiffStrategy,
 
-    // Skip if the entry is new to the checkdiff file
+    // Skip prompting for confirmation if the entry is new to the checkdiff file
     // and the checkdiff file was already initialised
     //
     // so if the file was not originally added to typewriter

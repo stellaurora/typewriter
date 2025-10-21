@@ -58,7 +58,7 @@ pub struct Typewriter {
 #[serde(deny_unknown_fields)]
 pub struct Config {
     // Configuration options relating to
-    // initial file permission check
+    // the apply command.
     #[serde(default)]
     pub apply: Apply,
 

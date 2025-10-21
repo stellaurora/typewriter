@@ -5,17 +5,18 @@ use std::{fs, path::PathBuf};
 
 use anyhow::Context;
 use log::info;
-use path_absolutize::Absolutize;
 use serde::Deserialize;
 
-use crate::{apply::strategy::ApplyStrategy, config::ROOT_CONFIG, file::TrackedFile};
+use crate::{
+    apply::strategy::ApplyStrategy, cleanpath::CleanPath, config::ROOT_CONFIG, file::TrackedFile,
+};
 
 /// Which strategy should be used for the temporary
 /// copy stage?
 #[derive(Deserialize, Debug)]
 pub enum TemporaryCopyStrategy {
-    // Copy the current working files to the temporary directory
-    // with the same name while proceeding through the operation
+    // Copy the current working file to the temporary directory
+    // while proceeding through the operation
     #[serde(rename = "copy_current")]
     CopyCurrent,
 
@@ -37,13 +38,11 @@ pub fn rename_to_temp_copy(path: &PathBuf) -> String {
 
 pub fn copy_current_strategy(file: &TrackedFile) -> anyhow::Result<()> {
     // Make tempdir path for this file
-    let mut tempcopy_path = PathBuf::from(
-        ROOT_CONFIG
-            .get_config()
-            .apply
-            .apply_metadata_dir
-            .absolutize()?,
-    );
+    let mut tempcopy_path = ROOT_CONFIG
+        .get_config()
+        .apply
+        .apply_metadata_dir
+        .clean_path()?;
 
     fs::create_dir_all(&tempcopy_path)
         .with_context(|| "While trying to make temporary directory for copying")?;
@@ -65,13 +64,12 @@ pub fn copy_current_strategy(file: &TrackedFile) -> anyhow::Result<()> {
 
 fn copy_current_strategy_cleanup(file: &TrackedFile) -> anyhow::Result<()> {
     // Path for this tempcopy.
-    let mut tempcopy_path = PathBuf::from(
-        ROOT_CONFIG
-            .get_config()
-            .apply
-            .apply_metadata_dir
-            .absolutize()?,
-    );
+    let mut tempcopy_path = ROOT_CONFIG
+        .get_config()
+        .apply
+        .apply_metadata_dir
+        .clean_path()?;
+
     tempcopy_path.push(rename_to_temp_copy(&file.destination));
     fs::remove_file(&tempcopy_path)
         .with_context(|| "While trying to remove temporary copy of file in temporary directory")?;

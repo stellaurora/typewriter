@@ -9,10 +9,9 @@ use std::{
 use anyhow::{Context, bail};
 use inquire::Confirm;
 use log::{error, info};
-use path_absolutize::Absolutize;
 use serde::Deserialize;
 
-use crate::config::ROOT_CONFIG;
+use crate::{cleanpath::CleanPath, config::ROOT_CONFIG};
 
 /// List of tracked files with extra methods to help.
 #[derive(Deserialize, Default, Debug)]
@@ -45,9 +44,9 @@ impl TrackedFile {
             .context("Configuration file has no parent directory")?;
 
         // Absolutize the joined file path for both fields.
-        self.file = PathBuf::from(parent.join(&self.file).absolutize()?);
-        self.destination = PathBuf::from(parent.join(&self.destination).absolutize()?);
-        self.src = PathBuf::from(file_path.absolutize()?);
+        self.file = parent.join(&self.file).clean_path()?;
+        self.destination = parent.join(&self.destination).clean_path()?;
+        self.src = file_path.clean_path()?;
 
         Ok(())
     }
