@@ -15,7 +15,7 @@ pub struct GlobalConfig(OnceLock<Config>);
 // filled in once the config has been gotten
 pub static ROOT_CONFIG: GlobalConfig = GlobalConfig(OnceLock::new());
 
-use crate::{apply::Apply, file::TrackedFileList, git::Git, parse_config::ConfigLink};
+use crate::{apply::Apply, file::TrackedFileList, parse_config::ConfigLink};
 
 /// Wrapper with helper methods for interacting
 /// with a list of typewriter configs
@@ -48,11 +48,6 @@ pub struct Typewriter {
 #[derive(Deserialize, Default, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    // Git related configuration options
-    // such as automatic commits on apply.
-    #[serde(default)]
-    pub git: Git,
-
     // Configuration options relating to
     // initial file permission check
     #[serde(default)]

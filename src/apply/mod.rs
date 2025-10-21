@@ -141,12 +141,13 @@ pub fn apply(files: TrackedFileList, strategies: Vec<&dyn ApplyStrategy>) -> any
             )
         })?;
 
+        // Pretty output for user :)
         println!(
             "[{}] {:?} to {:?} {}",
             White.bold().paint("COPIED"),
             file.file,
             file.destination,
-            Black.dimmed().paint(format!("[SRC: {:?}]", file.src))
+            Black.dimmed().paint(format!("[ref: {:?}]", file.src))
         );
 
         // After copy individual file strategies

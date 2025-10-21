@@ -9,9 +9,6 @@ mod args;
 mod config;
 mod parse_config;
 
-// Git integration
-mod git;
-
 // File management
 mod file;
 
