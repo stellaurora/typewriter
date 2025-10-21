@@ -4,17 +4,11 @@
 🕰️☕🖋️📜💡
 </div>
 <div align="center">
-  <strong>Dotfile Management Software</strong>
+  <strong>Configuration File Management Software</strong>
 </div>
 <div align="center">
-  A file-based minimal dotfile management program written in <code>rust</code>
+  A <code>TOML</code> file-based configuration file management program for centralising configuration.
 </div>
 
 <br />
-
-## Table of Contents
-- [Installation](#1-installation)
-
-
-<h2 id="1-installation">Installation</h2>
 
