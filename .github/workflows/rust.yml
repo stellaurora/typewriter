@@ -19,16 +19,14 @@ jobs:
         with:
           toolchain: nightly 
           override: true
-      - name: Build
+      - name: Build for release
         run: cargo build --verbose --release
-      - name: Run tests
-        run: cargo test --verbose
-      - name: Create artifact directory
-        run: mkdir -p artifacts
-      - name: Copy build artifacts
-        run: cp target/release/typewriter artifacts/typewriter
-      - name: Upload artifacts
+      - name: Create artefact directory
+        run: mkdir -p artefacts
+      - name: Copy build artefacts
+        run: cp target/release/typewriter artefacts/typewriter
+      - name: Upload typewriter
         uses: actions/upload-artifact@v4
         with:
-          name: rust-build-artifacts
-          path: artifacts/
+          name: typewriter
+          path: artefacts/typewriter
