@@ -85,14 +85,14 @@ fn copy_current_strategy_cleanup(file: &TrackedFile) -> anyhow::Result<()> {
 }
 
 impl ApplyStrategy for TemporaryCopyStrategy {
-    fn run_before_copy_file(self: &Self, file: &TrackedFile) -> anyhow::Result<()> {
+    fn run_before_copy_file(self: &Self, file: &mut TrackedFile) -> anyhow::Result<()> {
         match self {
             TemporaryCopyStrategy::CopyCurrent => copy_current_strategy(file),
             TemporaryCopyStrategy::Disabled => Ok(()),
         }
     }
 
-    fn run_after_copy_file(self: &Self, file: &TrackedFile) -> anyhow::Result<()> {
+    fn run_after_copy_file(self: &Self, file: &mut TrackedFile) -> anyhow::Result<()> {
         if !ROOT_CONFIG.get_config().apply.cleanup_files {
             return Ok(());
         }

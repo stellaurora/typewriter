@@ -9,6 +9,9 @@ mod args;
 mod config;
 mod parse_config;
 
+// Variables handling in the config files
+mod vars;
+
 // File management
 mod file;
 

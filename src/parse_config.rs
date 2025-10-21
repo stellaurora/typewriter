@@ -24,6 +24,7 @@ pub struct ConfigLink {
     file: PathBuf,
 }
 
+/// Is this link to another file (from origin_file) valid?
 fn validate_link(file_path: &PathBuf, origin_file: &PathBuf) -> anyhow::Result<()> {
     // Check if path exists, else error.
     if !file_path.exists() {
@@ -51,6 +52,12 @@ fn parse_single_config(file_path: &PathBuf) -> anyhow::Result<Typewriter> {
         .files
         .iter_mut()
         .try_for_each(|tracked_file| tracked_file.add_typewriter_dir(file_path))?;
+
+    // Add dir to variable for debug info.
+    config
+        .variables
+        .iter_mut()
+        .try_for_each(|variable| variable.add_typewriter_dir(file_path))?;
 
     Ok(config)
 }

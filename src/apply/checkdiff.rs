@@ -108,7 +108,7 @@ type HashFile = fn(file_path: &PathBuf) -> anyhow::Result<String>;
 /// XXHASH version of hashing a file in from file path
 
 fn xxhash_hash_file(path: &PathBuf) -> anyhow::Result<String> {
-    let file = File::open(path)?;
+    let file = File::open(path).with_context(|| format!("While trying to hash file {:?}", path))?;
     let mut reader = BufReader::new(file);
 
     // Buffer 64kb reads in from file at a time for hashing
@@ -246,7 +246,7 @@ fn run_hash_strategy_after_copy(files: &TrackedFileList, hash_fn: HashFile) -> a
 }
 
 impl ApplyStrategy for FileCheckDiffStrategy {
-    fn run_before_copy(self: &Self, files: &TrackedFileList) -> anyhow::Result<()> {
+    fn run_before_copy(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
         // Specific method for checking file diff.
         match self {
             FileCheckDiffStrategy::Disabled => Ok(()),
@@ -256,7 +256,7 @@ impl ApplyStrategy for FileCheckDiffStrategy {
         }
     }
 
-    fn run_after_copy(self: &Self, files: &TrackedFileList) -> anyhow::Result<()> {
+    fn run_after_copy(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
         // Method for writing checksum back after copying
         match self {
             FileCheckDiffStrategy::Disabled => Ok(()),

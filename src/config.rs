@@ -15,11 +15,16 @@ pub struct GlobalConfig(OnceLock<Config>);
 // filled in once the config has been gotten
 pub static ROOT_CONFIG: GlobalConfig = GlobalConfig(OnceLock::new());
 
-use crate::{apply::Apply, file::TrackedFileList, parse_config::ConfigLink};
+use crate::{
+    apply::Apply,
+    file::TrackedFileList,
+    parse_config::ConfigLink,
+    vars::{VariableConfig, VariableList},
+};
 
 /// Wrapper with helper methods for interacting
 /// with a list of typewriter configs
-pub struct TypewriterConfigs(Vec<Typewriter>);
+pub struct TypewriterConfigs(pub Vec<Typewriter>);
 
 /// Configuration for the a file in the typewriter system
 ///
@@ -34,6 +39,10 @@ pub struct Typewriter {
     // Links to other files to include in the configuration
     #[serde(rename = "link", default)]
     pub links: Vec<ConfigLink>,
+
+    // Variables for postprocessing
+    #[serde(rename = "var", default)]
+    pub variables: VariableList,
 
     // Files to update in the system
     #[serde(rename = "file", default)]
@@ -52,6 +61,11 @@ pub struct Config {
     // initial file permission check
     #[serde(default)]
     pub apply: Apply,
+
+    // Configuration options relating to
+    // the postprocessor/variables
+    #[serde(default)]
+    pub variables: VariableConfig,
 }
 
 impl Deref for TypewriterConfigs {
@@ -78,13 +92,20 @@ impl FromIterator<Typewriter> for TypewriterConfigs {
 
 impl TypewriterConfigs {
     /// Decomposes down all of the typewriter configs
-    /// into only their tracked files as a list.
-    pub fn all_files(self: Self) -> TrackedFileList {
-        // Insert all tracked file lists entries into one new list
-        self.0
+    /// into their useful data as lists.
+    pub fn flatten_data(self: Self) -> (TrackedFileList, VariableList) {
+        // Decompose each config and collect files and variables separately
+        let (files, variables): (Vec<_>, Vec<_>) = self
+            .0
             .into_iter()
-            .flat_map(|config| config.files.0)
-            .collect()
+            .map(|config| (config.files, config.variables))
+            .unzip();
+
+        // Flatten the vectors of wrapped types
+        (
+            files.into_iter().flat_map(|f| f.0).collect(),
+            variables.into_iter().flat_map(|v| v.0).collect(),
+        )
     }
 }
 

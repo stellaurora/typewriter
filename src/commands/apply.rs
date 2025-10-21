@@ -9,9 +9,8 @@ use path_absolutize::Absolutize;
 use std::path::PathBuf;
 
 use crate::{
-    apply::{apply, strategy::ApplyStrategy},
+    apply::{apply, strategy::ApplyStrategy, variables::VariableApplying},
     config::ROOT_CONFIG,
-    file::TrackedFileList,
     parse_config::parse_config,
 };
 
@@ -41,31 +40,38 @@ pub fn apply_command(file: String) -> anyhow::Result<()> {
     let global_config = root.config.unwrap_or_default();
     ROOT_CONFIG.set_config(global_config);
 
-    // Combile all files in all typewriters into one list
-    let mut total_list: TrackedFileList = root.files;
-    total_list.extend(configs.all_files().0.into_iter());
+    let config = ROOT_CONFIG.get_config();
+
+    // Grab data flattened into a list
+    let (mut total_files_list, mut total_variables_list) = configs.flatten_data();
+    total_files_list.extend(root.files.0.into_iter());
+    total_variables_list.extend(root.variables.0.into_iter());
+
+    // Deal with variables first
+    let var_map = total_variables_list.to_map()?;
+    let var_strategy = VariableApplying::new(config.variables.variable_strategy, var_map);
 
     // Skip all the files with no permissions
     // TOCTOU, ensure can still handle case with no permissions later.
-    total_list = total_list.question_skip_files_no_perms()?;
+    total_files_list = total_files_list.question_skip_files_no_perms()?;
 
     // Nothing to apply to case.
-    if total_list.len() < 1 {
+    if total_files_list.len() < 1 {
         info!("No files referenced to apply to, operation complete.");
         return Ok(());
     }
 
-    if !continue_apply_prompt(total_list.len())? {
+    if !continue_apply_prompt(total_files_list.len())? {
         bail!("Aborting apply operation");
     }
 
     // Get strategies
-    let config = ROOT_CONFIG.get_config();
     let strategies: Vec<&dyn ApplyStrategy> = vec![
+        &var_strategy,
         &config.apply.temp_copy_strategy,
         &config.apply.checkdiff_strategy,
     ];
 
     // Run apply
-    apply(total_list, strategies)
+    apply(total_files_list, strategies)
 }

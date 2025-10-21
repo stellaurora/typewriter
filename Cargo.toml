@@ -35,5 +35,6 @@ ansi_term = "0.12"
 # RON for metadata serialization/deserialization and storage.
 ron = "0.11.0"
 
-
+# Regex for variable matching
+regex = "1"
 

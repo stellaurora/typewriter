@@ -1,7 +1,6 @@
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use ansi_term::Color::{Black, White};
-use anyhow::Context;
 use serde::Deserialize;
 
 use crate::{
@@ -13,6 +12,9 @@ use crate::{
 
 // Strategy trait for dyn handling
 pub mod strategy;
+
+// Postprocessing handling
+pub mod variables;
 
 // Temporary copy handling
 pub mod tempcopy;
@@ -118,49 +120,44 @@ fn default_tempfile_dir() -> PathBuf {
 }
 
 /// Run apply copy
-pub fn apply(files: TrackedFileList, strategies: Vec<&dyn ApplyStrategy>) -> anyhow::Result<()> {
+pub fn apply(
+    mut files: TrackedFileList,
+    strategies: Vec<&dyn ApplyStrategy>,
+) -> anyhow::Result<()> {
     // Run before copy strategies
     strategies
         .iter()
-        .map(|strategy| strategy.run_before_copy(&files))
+        .map(|strategy| strategy.run_before_copy(&mut files))
         .collect::<anyhow::Result<()>>()?;
 
     // Process each file
-    for file in &files.0 {
+    for mut file in &mut files.0 {
         // Before copy individual file strategies
         strategies
             .iter()
-            .map(|strategy| strategy.run_before_copy_file(&file))
+            .map(|strategy| strategy.run_before_copy_file(&mut file))
             .collect::<anyhow::Result<()>>()?;
 
-        // Copy file to destination..
-        fs::copy(&file.file, &file.destination).with_context(|| {
-            format!(
-                "While trying to apply {:?} to {:?} referenced by config {:?}",
-                file.file, file.destination, file.src
-            )
-        })?;
+        // After apply individual file strategies
+        strategies
+            .iter()
+            .map(|strategy| strategy.run_after_copy_file(&mut file))
+            .collect::<anyhow::Result<()>>()?;
 
         // Pretty output for user :)
         println!(
             "[{}] {:?} to {:?} {}",
-            White.bold().paint("COPIED"),
+            White.bold().paint("APPLIED"),
             file.file,
             file.destination,
             Black.dimmed().paint(format!("[ref: {:?}]", file.src))
         );
-
-        // After copy individual file strategies
-        strategies
-            .iter()
-            .map(|strategy| strategy.run_after_copy_file(&file))
-            .collect::<anyhow::Result<()>>()?;
     }
 
     // Run after copy strategies
     strategies
         .iter()
-        .map(|strategy| strategy.run_after_copy(&files))
+        .map(|strategy| strategy.run_after_copy(&mut files))
         .collect::<anyhow::Result<()>>()?;
 
     Ok(())

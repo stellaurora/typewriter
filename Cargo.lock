@@ -698,6 +698,7 @@ dependencies = [
  "inquire",
  "log",
  "path-absolutize",
+ "regex",
  "ron",
  "serde",
  "toml",
