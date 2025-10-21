@@ -12,27 +12,20 @@
 
 
 ## 📜 Table of Contents
-- [<code>📦 Getting Started</code>](#-getting-started)
-- [<code>🛠️ Features</code>](#-features)
-- [<code>📝 Usage</code>](#-usage)
-- [<code>⚙️ Config Examples</code>](#-config-examples)
-- [<code>📖 Configuration</code>](#-configuration)
-- [<code>🧾 License</code>](#-license)
-- [<code>🎓 Acknowledgments</code>](#-acknowledgments)
+- [<code>📦 Getting Started</code>](#getting-started)
+- [<code>🛠️ Features</code>](#features)
+- [<code>📝 Usage</code>](#usage)
+- [<code>⚙️ Config Examples</code>](#config-examples)
+- [<code>📖 Configuration</code>](#configuration)
+- [<code>🧾 License</code>](#license)
+- [<code>🎓 Acknowledgments</code>](#acknowledgments)
 
+<a name="getting-started"></a>
 ## 📦 Getting Started 
 
 ### For Linux x86_64
 
-You can download prebuilt binaries off the latest runner build and run typewriter by running:
-
-```sh
-$ wget -content-disposition "https://github.com/stellaurora/typewriter/releases/latest/download/typewriter-1.0.0-linux-x86_64"
-
-$ chmod +x typewriter-1.0.0-linux-x86_64
-
-$ ./typewriter-1.0.0-linux-x86_64
-```
+You can download prebuilt binaries off the latest runner build at **https://github.com/stellaurora/typewriter/releases/latest**. Then verify the checksum and simply provide execution permissions to the binary and use.
 
 The entirety of typewriter can be used through this one binary, run it to view the initial ``help`` command to learn more or ``init`` to generate a basic template configuration file.
 
@@ -40,6 +33,7 @@ The entirety of typewriter can be used through this one binary, run it to view t
 
 Typewriter is for ``Linux`` and currently for github releases is only compiled under the CI for ``x86_64`` if you are running on another platform, you will need to manually clone and build typewriter yourself (unknown if it will work on other platforms!).
 
+<a name="features"></a>
 ## 🛠️ Features
 
 - Entirely ``TOML`` file-based configuration 
@@ -60,6 +54,7 @@ Typewriter is for ``Linux`` and currently for github releases is only compiled u
 - Entirely Configurable
   - All of the above features can be totally/partially customised in functionality, If you don't want to check checksums then you don't need to!
 
+<a name="usage"></a>
 ## 📝 Usage
 
 The primary/entire use of typewriter is through the command:
@@ -84,6 +79,8 @@ typewriter help
 
 can be used, though this does not cover the configuration options.
 
+
+<a name="config-examples"></a>
 ## ⚙️ Config Examples
 
 ### Example/Default Configuration
@@ -129,9 +126,9 @@ Mechanism used for having multiple configuration files part of one typewriter co
 # multiple links can be provided in the same syntax
 [[link]]
 file = "subdir/typewriter_b.toml"
+```
 
-
-
+```toml
 # some_dir/subdir/typewriter_b.toml
 #
 # Link to some other file!, remember
@@ -192,14 +189,21 @@ value="hello world!"
 [[file]]
 file="source.file"
 destination="~/.config/source.file"
+```
 
-# source.file
+With the source file
+
+```
 print("$TYPEWRITER{my_var}")
+```
 
-# After running in ~/.config/source.file
+Then, after we run ``apply`` the destination will be
+
+```
 print("hello world!")
 ```
 
+<a name="configuration"></a>
 ## 📖 Configuration
 
 These are the various configuration options available in typewriter configs.
@@ -541,10 +545,12 @@ type: ``string``
 destination="~/.config/destination.file"
 ```
 
+<a name="license"></a>
 ## 🧾 License
 
 This repository/``typewriter`` is under the MIT license. view it in the ``LICENSE`` file in the root directory of the repository.
 
+<a name="acknowledgements"></a>
 ## 🎓 Acknowledgments
 
 - Thanks to all of the crates used by ``typewriter``.
@@ -556,3 +562,5 @@ This repository/``typewriter`` is under the MIT license. view it in the ``LICENS
 -------------
 
 [Typewriter Authored/Created by Stellaurora](https://github.com/stellaurora/typewriter)
+
+Love for everyone 💛 
