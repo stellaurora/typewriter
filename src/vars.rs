@@ -20,7 +20,7 @@ use crate::{apply::variables::VariableApplyingStrategy, config::ROOT_CONFIG};
 pub struct VariableList(pub Vec<Variable>);
 
 /// Global variable related configuration options
-/// (or postprocessor)
+/// (or preprocessor)
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
 pub struct VariableConfig {
@@ -35,7 +35,7 @@ pub struct VariableConfig {
     #[serde(default = "default_variable_format")]
     pub variable_format: String,
 
-    // Strategy to use for variable post processing
+    // Strategy to use for variable pre processing
     #[serde(default)]
     pub variable_strategy: VariableApplyingStrategy,
 
@@ -55,7 +55,7 @@ pub struct VariableConfig {
 }
 
 /// An individual "variable" which can be inserted
-/// by the postprocessor of typewriter into config
+/// by the preprocessor of typewriter into config
 /// files
 #[derive(Deserialize, Debug)]
 #[serde(deny_unknown_fields)]
@@ -75,7 +75,7 @@ pub struct Variable {
     #[serde(default, rename = "type")]
     pub var_type: VariableType,
 
-    // Value which will be inserted in postprocess-time
+    // Value which will be inserted in preprocess-time
     // into config files.
     pub value: String,
 }
@@ -89,7 +89,7 @@ pub enum VariableType {
     #[serde(rename = "literal")]
     Literal,
 
-    // Execute the value as a command before postprocess occurs,
+    // Execute the value as a command before preprocess occurs,
     // and insert its output in the references to the variable
     #[serde(rename = "command")]
     Command,

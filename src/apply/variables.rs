@@ -1,4 +1,4 @@
-//! Responsible for post-processing copied files by inserting
+//! Responsible for pre-processing copied files by inserting
 //! typewriter variables in them.
 
 use std::{
@@ -17,23 +17,23 @@ use crate::{
     file::{TrackedFile, TrackedFileList},
 };
 
-/// Which strategy to use for the variable postprocessing
+/// Which strategy to use for the variable preprocessing
 /// stage?
 #[derive(Deserialize, Debug, Clone, Copy)]
 pub enum VariableApplyingStrategy {
-    // Enabled, will postprocess and replace variables
+    // Enabled, will preprocess and replace variables
     // found in file
     #[serde(rename = "replace_variables")]
     ReplaceVariables,
 
-    // Dont postprocess
+    // Dont preprocess
     #[serde(rename = "disabled")]
     Disabled,
 }
 
 /// Wrap the strategy with the variable map for processing
 pub struct VariableApplying {
-    // Which strategy to use for the post processing
+    // Which strategy to use for the pre processing
     strategy: VariableApplyingStrategy,
 
     // Map of variable name -> value for replacing

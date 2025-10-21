@@ -13,7 +13,7 @@ use crate::{
 // Strategy trait for dyn handling
 pub mod strategy;
 
-// Postprocessing handling
+// Preprocessing handling
 pub mod variables;
 
 // Temporary copy handling

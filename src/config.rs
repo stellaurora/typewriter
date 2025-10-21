@@ -40,7 +40,7 @@ pub struct Typewriter {
     #[serde(rename = "link", default)]
     pub links: Vec<ConfigLink>,
 
-    // Variables for postprocessing
+    // Variables for preprocessing
     #[serde(rename = "var", default)]
     pub variables: VariableList,
 
@@ -63,7 +63,7 @@ pub struct Config {
     pub apply: Apply,
 
     // Configuration options relating to
-    // the postprocessor/variables
+    // the preprocessor/variables
     #[serde(default)]
     pub variables: VariableConfig,
 }
