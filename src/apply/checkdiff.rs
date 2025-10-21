@@ -246,7 +246,7 @@ fn run_hash_strategy_after_copy(files: &TrackedFileList, hash_fn: HashFile) -> a
 }
 
 impl ApplyStrategy for FileCheckDiffStrategy {
-    fn run_before_copy(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
+    fn run_before_apply(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
         // Specific method for checking file diff.
         match self {
             FileCheckDiffStrategy::Disabled => Ok(()),
@@ -256,7 +256,7 @@ impl ApplyStrategy for FileCheckDiffStrategy {
         }
     }
 
-    fn run_after_copy(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
+    fn run_after_apply(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
         // Method for writing checksum back after copying
         match self {
             FileCheckDiffStrategy::Disabled => Ok(()),

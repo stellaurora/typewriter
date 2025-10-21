@@ -153,7 +153,7 @@ impl VariableApplying {
 }
 
 impl ApplyStrategy for VariableApplying {
-    fn run_before_copy(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
+    fn run_before_apply(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
         match self.strategy {
             VariableApplyingStrategy::Disabled => return Ok(()),
             _ => {}
@@ -167,7 +167,7 @@ impl ApplyStrategy for VariableApplying {
         Ok(())
     }
 
-    fn run_after_copy_file(self: &Self, file: &mut TrackedFile) -> anyhow::Result<()> {
+    fn run_after_apply_file(self: &Self, file: &mut TrackedFile) -> anyhow::Result<()> {
         match self.strategy {
             VariableApplyingStrategy::Disabled => {
                 // Copy file to destination directly, no variabling

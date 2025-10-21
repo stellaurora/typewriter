@@ -127,7 +127,7 @@ pub fn apply(
     // Run before copy strategies
     strategies
         .iter()
-        .map(|strategy| strategy.run_before_copy(&mut files))
+        .map(|strategy| strategy.run_before_apply(&mut files))
         .collect::<anyhow::Result<()>>()?;
 
     // Process each file
@@ -135,13 +135,13 @@ pub fn apply(
         // Before copy individual file strategies
         strategies
             .iter()
-            .map(|strategy| strategy.run_before_copy_file(&mut file))
+            .map(|strategy| strategy.run_before_apply_file(&mut file))
             .collect::<anyhow::Result<()>>()?;
 
         // After apply individual file strategies
         strategies
             .iter()
-            .map(|strategy| strategy.run_after_copy_file(&mut file))
+            .map(|strategy| strategy.run_after_apply_file(&mut file))
             .collect::<anyhow::Result<()>>()?;
 
         // Pretty output for user :)
@@ -157,7 +157,7 @@ pub fn apply(
     // Run after copy strategies
     strategies
         .iter()
-        .map(|strategy| strategy.run_after_copy(&mut files))
+        .map(|strategy| strategy.run_after_apply(&mut files))
         .collect::<anyhow::Result<()>>()?;
 
     Ok(())
