@@ -1,14 +1,11 @@
 name: Rust CI
-
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   build_and_upload:
     runs-on: ubuntu-latest
@@ -19,14 +16,41 @@ jobs:
         with:
           toolchain: nightly 
           override: true
+      
+      - name: Get version from Cargo.toml
+        id: version
+        run: echo "version=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+      
       - name: Build for release
         run: cargo build --verbose --release
+      
       - name: Create artefact directory
         run: mkdir -p artefacts
-      - name: Copy build artefacts
-        run: cp target/release/typewriter artefacts/typewriter
+      
+      - name: Copy build artefacts with version and platform
+        run: |
+          PLATFORM="linux-x86_64"
+          VERSION="${{ steps.version.outputs.version }}"
+          cp target/release/typewriter artefacts/typewriter-${VERSION}-${PLATFORM}
+      
       - name: Upload typewriter
         uses: actions/upload-artifact@v4
         with:
-          name: typewriter
-          path: artefacts/typewriter
+          name: typewriter-${{ steps.version.outputs.version }}-linux-x86_64
+          path: artefacts/typewriter-*
+      
+      # Create release only on main branch pushes
+      - name: Generate release tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: tag
+        run: echo "release_tag=v${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: Release ${{ steps.tag.outputs.release_tag }}
+          files: artefacts/typewriter-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
