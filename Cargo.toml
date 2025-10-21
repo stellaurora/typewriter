@@ -3,7 +3,7 @@ name = "typewriter"
 version = "1.0.0"
 edition = "2024"
 authors = ["stellaurora <jeancharlduplessis@gmail.com>"]
-description = "A file-based minimal dotfile management program"
+description = "A file-based minimal configuration management program"
 
 [dependencies]
 # Deserialisation support for TOML files
