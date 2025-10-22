@@ -25,7 +25,7 @@
 
 ### For Linux x86_64
 
-You can download prebuilt binaries off the latest runner build at **https://github.com/stellaurora/typewriter/releases/latest**. Then verify the checksum and simply provide execution permissions to the binary and use.
+You can download prebuilt binaries off the latest runner build at **https://github.com/stellaurora/typewriter/releases/latest**. Then verify the checksum and simply provide execution permissions to the binary and use. The tiny version is compiled for binary size and uses the ``UPX`` on the binary for even more compression.
 
 The entirety of typewriter can be used through this one binary, run it to view the initial ``help`` command to learn more or ``init`` to generate a basic template configuration file.
 
