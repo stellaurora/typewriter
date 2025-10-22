@@ -16,6 +16,7 @@ jobs:
         with:
           toolchain: nightly 
           override: true
+          components: rust-src
       
       - name: Get version from Cargo.toml
         id: version
@@ -33,11 +34,31 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           cp target/release/typewriter artefacts/typewriter-${VERSION}-${PLATFORM}
       
+      - name: Build for tiny profile
+        run: |
+          RUSTFLAGS="-Zlocation-detail=none" cargo build -Z build-std=std,panic_abort -Z build-std-features="optimize_for_size" --profile tiny --target x86_64-unknown-linux-gnu
+      
+      - name: Install UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          install-only: true
+      
+      - name: Compress tiny build with UPX
+        run: |
+          upx --ultra-brute target/x86_64-unknown-linux-gnu/tiny/typewriter -o target/x86_64-unknown-linux-gnu/tiny/typewriter-compressed
+      
+      - name: Copy tiny build artefact
+        run: |
+          PLATFORM="linux-x86_64"
+          VERSION="${{ steps.version.outputs.version }}"
+          cp target/x86_64-unknown-linux-gnu/tiny/typewriter-compressed artefacts/typewriter-${VERSION}-${PLATFORM}-tiny
+      
       - name: Upload typewriter
         uses: actions/upload-artifact@v4
         with:
           name: typewriter-${{ steps.version.outputs.version }}-linux-x86_64
           path: artefacts/typewriter-*
+      
       
       # Create release only on main branch pushes
       - name: Generate release tag
