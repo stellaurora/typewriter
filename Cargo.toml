@@ -45,3 +45,10 @@ codegen-units = 1
 lto = true
 panic = "abort"
 
+
+[profile.tiny]
+# Tiny executable focus
+inherits = "release"
+opt-level = "z"
+strip = true 
+
