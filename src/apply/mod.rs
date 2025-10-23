@@ -70,6 +70,13 @@ pub struct Apply {
     #[serde(default)]
     pub checkdiff_strategy: FileCheckDiffStrategy,
 
+    // Global toggle for whether checkdiff
+    // should be permitted to skip files if
+    // the content is the same in source & destination
+    //  or not
+    #[serde(default = "default_is_true")]
+    pub checkdiff_skip_same: bool,
+
     // Skip prompting for confirmation if the entry is new to the checkdiff file
     // and the checkdiff file was already initialised
     //
@@ -96,6 +103,7 @@ impl Default for Apply {
             checkdiff_file_name: default_checkdiff_file_name(),
             checkdiff_strategy: Default::default(),
             skip_checkdiff_new: Default::default(),
+            checkdiff_skip_same: default_is_true(),
         }
     }
 }

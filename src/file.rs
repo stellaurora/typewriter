@@ -25,12 +25,21 @@ pub struct TrackedFile {
     // Source file to read from
     pub file: PathBuf,
 
+    // Allow checkdiff to skip this file
+    // if the file == destination content?
+    #[serde(default = "default_is_true")]
+    pub skip_if_same_content: bool,
+
     // Destination location to write to
     pub destination: PathBuf,
 
     // Source configuration file for this tracked file
     #[serde(skip)]
     pub src: PathBuf,
+}
+
+fn default_is_true() -> bool {
+    true
 }
 
 impl TrackedFile {

@@ -11,6 +11,7 @@ use std::{
 
 use anyhow::{Context, bail};
 use inquire::Confirm;
+use log::info;
 use serde::{Deserialize, Serialize};
 use xxhash_rust::xxh3::Xxh3;
 
@@ -188,10 +189,31 @@ fn hash_check_diff(
     Ok(())
 }
 
+/// Checks if two files are the same under checkdiff hash
+/// and skips if they are guaranteed to be the same, else
+/// doesn't
+fn hash_files_are_same(files: &TrackedFile, hash_fn: HashFile) -> bool {
+    if !files.skip_if_same_content {
+        return false;
+    }
+
+    // Run hash on source, destination and return if it is equal
+    if let Ok(hash_result_a) = hash_fn(&files.file) {
+        if let Ok(hash_result_b) = hash_fn(&files.destination) {
+            return hash_result_a == hash_result_b;
+        }
+    }
+
+    return false;
+}
+
 /// Run's the hash strategy check
 /// (before copy) phase, checking
 /// if the hashes match or have changed.
-fn run_hash_strategy_before_copy(files: &TrackedFileList, hash_fn: HashFile) -> anyhow::Result<()> {
+fn run_hash_strategy_before_copy(
+    files: &mut TrackedFileList,
+    hash_fn: HashFile,
+) -> anyhow::Result<()> {
     // Use checksum storage file.
     let checksum_entries = FileCheckDiffStrategy::read_checksum_entries()?;
 
@@ -218,6 +240,27 @@ fn run_hash_strategy_before_copy(files: &TrackedFileList, hash_fn: HashFile) -> 
         hash_check_diff(&checksum_entries, file, hash_fn)?;
     }
 
+    // Check for checkdiff skip things
+    let apply_config = &ROOT_CONFIG.get_config().apply;
+
+    if !apply_config.checkdiff_skip_same {
+        return Ok(());
+    }
+
+    // Filter files now
+    files.retain(|file| {
+        // Check for same and log if it is.
+        let is_same = hash_files_are_same(file, hash_fn);
+
+        if is_same {
+            info!("Dropping file {:?} that would apply to to {:?} referenced by config {:?} since content is the same.",
+                file.file, file.destination, file.src
+            )
+        } 
+
+        !is_same
+    });
+
     Ok(())
 }
 
@@ -225,20 +268,20 @@ fn run_hash_strategy_before_copy(files: &TrackedFileList, hash_fn: HashFile) -> 
 /// file using hash_fn to produce a hash
 /// for future use for diff checking
 fn run_hash_strategy_after_copy(files: &TrackedFileList, hash_fn: HashFile) -> anyhow::Result<()> {
-    let mut checksum_entries: HashMap<PathBuf, String> = HashMap::new();
+    // Use checksum storage file that already exists
+    // to keep entries we may have lost
+    let mut checksum_entries = FileCheckDiffStrategy::read_checksum_entries()?;
 
     for file in &files.0 {
         // Insert with the new hash..
-        checksum_entries.insert(
+        checksum_entries.entries.insert(
             PathBuf::from(&file.destination),
             hash_fn(&file.destination)?,
         );
     }
 
     // Write to the file
-    FileCheckDiffStrategy::write_checksum_entries(&ChecksumEntries {
-        entries: checksum_entries,
-    })?;
+    FileCheckDiffStrategy::write_checksum_entries(&checksum_entries)?;
 
     Ok(())
 }

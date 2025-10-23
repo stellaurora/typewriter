@@ -342,6 +342,19 @@ type: ``string``
 checkdiff_strategy="xxhash"
 ```
 
+------------------
+
+##### ``checkdiff_skip_same``
+
+Global toggle for whether checkdiff should be permitted to skip files if the content is found to be the same in source & destination or not, there is also a per-file granular one
+which requires this to be set to true.
+
+type: ``bool``
+
+```toml 
+[conifg.apply]
+checkdiff_skip_same=true
+```
 
 ------------------
 
@@ -530,6 +543,19 @@ type: ``string``
 ```toml 
 [[file]]
 file="source.file"
+```
+
+------------------
+
+### ``skip_if_same_content``
+
+Allow checkdiff to skip this file if the source file content is found to be the same as the destination content?
+
+type: ``bool``
+
+```toml 
+[[file]]
+skip_if_same_content=true
 ```
 
 ------------------
