@@ -38,10 +38,17 @@ fn validate_link(file_path: &PathBuf, origin_file: &PathBuf) -> anyhow::Result<(
 }
 
 /// Parses an individual configuration file
-fn parse_single_config(file_path: &PathBuf) -> anyhow::Result<Typewriter> {
+fn parse_single_config(file_path: &PathBuf, section: &String) -> anyhow::Result<Typewriter> {
     // Read in content and try parse using toml
     let file_content = fs::read_to_string(&file_path)
         .with_context(|| format!("While trying to read configuration file {:?}", file_path))?;
+
+    // Preprocess with quill
+    let file_content =
+        quill::extract_scope(file_content.as_str(), quill::Scope::DefinedScope(section))
+            .with_context(|| {
+                format!("While trying to parse configuration file through quill scope extraction")
+            })?;
 
     let mut config: Typewriter = toml::from_str(&file_content)
         .with_context(|| format!("While trying to parse configuration file {:?}", file_path))?;
@@ -94,7 +101,10 @@ fn process_links(
 ///
 /// The result is all of the included typewriter files together in a vec.
 /// which are all of the "linked" ones, and the first half of the tuple is the root.
-pub fn parse_config(file_path: PathBuf) -> anyhow::Result<(Typewriter, TypewriterConfigs)> {
+pub fn parse_config(
+    file_path: PathBuf,
+    section: String,
+) -> anyhow::Result<(Typewriter, TypewriterConfigs)> {
     if !file_path.exists() {
         bail!(
             "Supplied root configuration file {:?} does not exist",
@@ -118,7 +128,7 @@ pub fn parse_config(file_path: PathBuf) -> anyhow::Result<(Typewriter, Typewrite
         }
 
         // Process this config, add its other configs to the unproc list
-        let config = parse_single_config(&current_path)?;
+        let config = parse_single_config(&current_path, &section)?;
 
         // Warn about unsued config
         if !(current_path == file_path) && config.config.is_some() {

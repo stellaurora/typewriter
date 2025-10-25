@@ -29,12 +29,12 @@ fn continue_apply_prompt(num_applications: usize) -> anyhow::Result<bool> {
     )
 }
 
-pub fn apply_command(file: String) -> anyhow::Result<()> {
+pub fn apply_command(file: String, section: String) -> anyhow::Result<()> {
     // Validate file path
     let path = PathBuf::from(file).clean_path()?;
 
     // Parse configs to config structs.
-    let (root, configs) = parse_config(path)?;
+    let (root, configs) = parse_config(path, section)?;
 
     // Fill in global root config from root
     let global_config = root.config.unwrap_or_default();

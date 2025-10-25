@@ -1,6 +1,6 @@
 [package]
 name = "typewriter"
-version = "1.1.1"
+version = "2.1.1"
 edition = "2024"
 authors = ["stellaurora <jeancharlduplessis@gmail.com>"]
 description = "A file-based minimal configuration management program"
@@ -38,6 +38,9 @@ ron = "0.11.0"
 
 # Regex for variable matching
 regex = "1"
+
+# Quill extension for TOML
+quill = { git = "https://github.com/stellaurora/quill", branch = "main" }
 
 [profile.release]
 # Try optimise harder for even better performance..

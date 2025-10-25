@@ -35,7 +35,7 @@ fn main() {
     // Run correct command handler.
     let command_result = match args.command {
         args::Commands::Init { file } => init::init_command(file),
-        args::Commands::Apply { file } => commands::apply::apply_command(file),
+        args::Commands::Apply { file, section } => commands::apply::apply_command(file, section),
     };
 
     // Use error logger to print error..

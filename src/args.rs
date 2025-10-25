@@ -28,6 +28,12 @@ pub enum Commands {
         /// Name of the configuration file
         #[arg(short, long)]
         file: String,
+
+        /// Name of the provided section for
+        /// Quill TOML extensions. ALL of the config files
+        /// should share this section to minimise confusion.
+        #[arg(short, long, default_value = "typewriter")]
+        section: String,
     },
 }
 
