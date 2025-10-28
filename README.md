@@ -458,6 +458,9 @@ confirm_shell_commands=true
 
 This is an array of files specified each individually under the array table ``[[link]]``, each link is like including the file and will execute its contents as part of the typewriter system (excluding ``config`` for non-root configs).
 
+#### Aliases
+The ``[[link]]`` tables can also be defined under the aliases ``[[include]]``, ``[[use]]``, and ``[[import]]``.
+
 ---------------
 
 #### ``file``
@@ -475,7 +478,10 @@ file="other_dir/other_typewriter_config.toml"
 
 ### Variables
 
-These add individual "variables" (strings) that replace certain patterns supplied by ``variable_format`` in the configuration files managed by typewriter, each variable can be added under the array table ``[var]``
+These add individual "variables" (strings) that replace certain patterns supplied by ``variable_format`` in the configuration files managed by typewriter, each variable can be added under the array table ``[[var]]``
+
+#### Aliases
+The ``[[var]]`` tables can also be defined under the aliases ``[[variable]]`` and ``[[define]]``
 
 ---------------
 
@@ -531,6 +537,8 @@ These reference two files, the source and the destination for which to read file
 
 This is the core mechanism behind managing configuration and each file can be declared under the array table ``[[file]]``
 
+#### Aliases
+The ``[[file]]`` tables can also be defined under the alias ``[[track]]``
 
 ------------------
 

@@ -37,15 +37,21 @@ pub struct Typewriter {
     pub config: Option<Config>,
 
     // Links to other files to include in the configuration
-    #[serde(rename = "link", default)]
+    #[serde(
+        alias = "link",
+        alias = "include",
+        alias = "use",
+        alias = "import",
+        default
+    )]
     pub links: Vec<ConfigLink>,
 
     // Variables for preprocessing
-    #[serde(rename = "var", default)]
+    #[serde(alias = "var", alias = "variable", alias = "define", default)]
     pub variables: VariableList,
 
     // Files to update in the system
-    #[serde(rename = "file", default)]
+    #[serde(alias = "file", alias = "track", default)]
     pub files: TrackedFileList,
 }
 
