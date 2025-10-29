@@ -1,7 +1,7 @@
 //! Variable file parsing/handling in typewriter
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env,
     ops::{Deref, DerefMut},
     path::PathBuf,
@@ -10,6 +10,7 @@ use std::{
 
 use anyhow::{Context, bail};
 use inquire::Confirm;
+use regex::Regex;
 use serde::{Deserialize, de};
 
 use crate::{
@@ -83,7 +84,7 @@ pub struct Variable {
 
 /// Types of variables supported
 /// in typewriter
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Copy)]
 pub enum VariableType {
     // Directly insert the value
     // as a string in all references to the variable
@@ -240,6 +241,45 @@ fn execute_command_conf_shell(
         ))?)
 }
 
+/// Extracts variable references from a string based on the variable format
+/// Returns a vector of variable names found
+fn extract_variable_references(text: &str) -> anyhow::Result<Vec<String>> {
+    let var_conf = &ROOT_CONFIG.get_config().variables;
+    let format = &var_conf.variable_format;
+
+    // Escape the format string and replace {variable} with a capture group
+    let pattern = regex::escape(format).replace(r"\{variable\}", r"([^\s{}]+)");
+
+    let re = Regex::new(&pattern).with_context(|| {
+        format!(
+            "While trying to make regex format {} for variable resolving",
+            pattern
+        )
+    })?;
+
+    Ok(re
+        .captures_iter(text)
+        .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+        .collect())
+}
+
+/// Resolves variable references within a value string
+/// Returns the resolved string with all variable references replaced
+fn resolve_variable_references(value: &str, resolved_vars: &HashMap<String, String>) -> String {
+    let var_conf = &ROOT_CONFIG.get_config().variables;
+    let format = &var_conf.variable_format;
+
+    let mut result = value.to_string();
+
+    // Replace variables inside the string
+    for (var_name, var_value) in resolved_vars {
+        let placeholder = format.replace("{variable}", var_name);
+        result = result.replace(&placeholder, var_value);
+    }
+
+    result
+}
+
 /// Returns the string-to-insert value of this variable
 /// gotten from the type
 /// Name & Src fields are for debugging info for the user.
@@ -258,6 +298,63 @@ fn get_true_value(
     }
 }
 
+/// Resolves a single variable, checking for circular dependencies
+fn resolve_variable(
+    var_name: &str,
+    variables: &HashMap<String, Variable>,
+    resolved: &mut HashMap<String, String>,
+    resolving: &mut HashSet<String>,
+) -> anyhow::Result<String> {
+    // Check if already resolved
+    if let Some(value) = resolved.get(var_name) {
+        return Ok(value.clone());
+    }
+
+    // Check for circular dependency
+    if resolving.contains(var_name) {
+        let cycle: Vec<&str> = resolving.iter().map(|string| string.as_str()).collect();
+        bail!(
+            "Circular dependency detected in variable resolution: {} <-> {} (full chain: {:?})",
+            cycle.join(" <-> "),
+            var_name,
+            cycle
+        );
+    }
+
+    // Get the variable
+    let variable = variables
+        .get(var_name)
+        .with_context(|| format!("Variable '{}' referenced but not defined", var_name))?;
+
+    // Mark as currently resolving
+    resolving.insert(var_name.to_string());
+
+    // Extract references from the variable's value
+    let references = extract_variable_references(&variable.value)?;
+
+    // Recursively resolve all dependencies first
+    for ref_name in &references {
+        resolve_variable(ref_name, variables, resolved, resolving)?;
+    }
+
+    // Now resolve this variable's value with resolved dependencies
+    let resolved_value = resolve_variable_references(&variable.value, resolved);
+
+    // Get the true value (execute commands, read env vars, etc.)
+    let final_value = get_true_value(
+        &variable.name,
+        &variable.src,
+        variable.var_type,
+        resolved_value,
+    )?;
+
+    // Remove from resolving set and add to resolved
+    resolving.remove(var_name);
+    resolved.insert(var_name.to_string(), final_value.clone());
+
+    Ok(final_value)
+}
+
 impl VariableList {
     // Turns a list of variables and get's the final
     // value of each variable as the string-to-insert
@@ -267,38 +364,36 @@ impl VariableList {
     // This can cause other programs to be executed, or
     // environment variables to be read e.g depending on
     // variable types so it can fail.
+    //
+    // Now supports nested variable references and detects
+    // circular dependencies.
     pub fn to_map(self: Self) -> anyhow::Result<HashMap<String, String>> {
-        // For now, keep the original source as second element in tuple for tracing information
-        let mut var_map: HashMap<String, (String, PathBuf)> = HashMap::new();
+        // Build a map of variable names to Variable structs
+        let mut var_map: HashMap<String, Variable> = HashMap::new();
 
         for variable in self.0 {
-            // Check for duplicates.
-            if let Some((_, source)) = var_map.get(&variable.name) {
+            // Check for duplicates
+            if let Some(existing) = var_map.get(&variable.name) {
                 bail!(
                     "Variable {} referenced in file {:?} was found to be already declared in file {:?}",
                     variable.name,
                     variable.src,
-                    source
+                    existing.src
                 );
             }
 
-            // Get the true value from execution/env or whatever of the variable
-            let value = get_true_value(
-                &variable.name,
-                &variable.src,
-                variable.var_type,
-                variable.value,
-            )?;
-
-            // No duplicate yay! Now try get this variables content.
-            var_map.insert(variable.name, (value, variable.src));
+            var_map.insert(variable.name.clone(), variable);
         }
 
-        // Drop all the now unecessary omfo since they've all passed/been executed successfully.
-        // so hopefully tracing information now not required
-        Ok(var_map
-            .into_iter()
-            .map(|(key, (value, _))| (key, value))
-            .collect())
+        // Resolve all variables with dependency tracking
+        let mut resolved: HashMap<String, String> = HashMap::new();
+        let var_names: Vec<String> = var_map.keys().cloned().collect();
+
+        for var_name in var_names {
+            let mut resolving = HashSet::new();
+            resolve_variable(&var_name, &var_map, &mut resolved, &mut resolving)?;
+        }
+
+        Ok(resolved)
     }
 }
