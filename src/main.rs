@@ -19,6 +19,9 @@ mod file;
 // Different commands
 mod commands;
 
+// Shell command execution
+mod command;
+
 // Logging handling/setup
 mod log;
 

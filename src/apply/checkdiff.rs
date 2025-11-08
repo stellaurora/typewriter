@@ -256,7 +256,7 @@ fn run_hash_strategy_before_copy(
             info!("Dropping file {:?} that would apply to to {:?} referenced by config {:?} since content is the same.",
                 file.file, file.destination, file.src
             )
-        } 
+        }
 
         !is_same
     });

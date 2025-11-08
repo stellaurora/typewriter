@@ -33,6 +33,18 @@ pub struct TrackedFile {
     // Destination location to write to
     pub destination: PathBuf,
 
+    // Hooks that are executed before this file is applied
+    #[serde(default)]
+    pub pre_hook: Vec<String>,
+
+    // Hooks that are executed after this file is applied
+    #[serde(default)]
+    pub post_hook: Vec<String>,
+
+    // Whether or not to continue applying on an error in hooks
+    #[serde(default)]
+    pub continue_on_hook_error: bool,
+
     // Source configuration file for this tracked file
     #[serde(skip)]
     pub src: PathBuf,

@@ -65,6 +65,12 @@ fn parse_single_config(file_path: &PathBuf, section: &String) -> anyhow::Result<
         .iter_mut()
         .try_for_each(|variable| variable.add_typewriter_dir(file_path))?;
 
+    // Add dir to hooks for debug info
+    config
+        .hooks
+        .iter_mut()
+        .try_for_each(|hook| hook.add_typewriter_dir(file_path))?;
+
     Ok(config)
 }
 

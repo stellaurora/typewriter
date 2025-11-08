@@ -22,6 +22,9 @@ pub mod tempcopy;
 // Checking diff first before writing
 pub mod checkdiff;
 
+// Hooks/command execution at certain stages.
+pub mod hooks;
+
 /// Configuration options to apply command
 /// files
 #[derive(Deserialize, Debug)]

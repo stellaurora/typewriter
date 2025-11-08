@@ -5,16 +5,17 @@ use std::{
     env,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    process::Command,
 };
 
 use anyhow::{Context, bail};
-use inquire::Confirm;
 use regex::Regex;
 use serde::{Deserialize, de};
 
 use crate::{
-    apply::variables::VariableApplyingStrategy, cleanpath::CleanPath, config::ROOT_CONFIG,
+    apply::variables::VariableApplyingStrategy,
+    cleanpath::CleanPath,
+    command::{CommandContext, execute_command},
+    config::ROOT_CONFIG,
 };
 
 /// Helper list for interfacing with a list of variables
@@ -40,20 +41,6 @@ pub struct VariableConfig {
     // Strategy to use for variable pre processing
     #[serde(default)]
     pub variable_strategy: VariableApplyingStrategy,
-
-    // Shell to run variables of type command in
-    #[serde(default = "default_shell")]
-    pub variable_shell: String,
-
-    // Argument to provide to the shell to be capable
-    // of running the variable command
-    #[serde(default = "default_shell_command_arg")]
-    pub shell_command_arg: String,
-
-    // Confirm on running any shell commands in the
-    // config
-    #[serde(default = "default_is_true")]
-    pub confirm_shell_commands: bool,
 }
 
 /// An individual "variable" which can be inserted
@@ -112,27 +99,12 @@ impl Default for VariableConfig {
     fn default() -> Self {
         Self {
             variable_format: default_variable_format(),
-            variable_shell: default_shell(),
-            shell_command_arg: default_shell_command_arg(),
-            confirm_shell_commands: default_is_true(),
             variable_strategy: Default::default(),
         }
     }
 }
 
 /// Defaults for the variable config.
-fn default_shell_command_arg() -> String {
-    String::from("-c")
-}
-
-fn default_is_true() -> bool {
-    true
-}
-
-fn default_shell() -> String {
-    String::from("bash")
-}
-
 fn default_variable_format() -> String {
     String::from("$TYPEWRITER{{variable}}")
 }
@@ -194,51 +166,28 @@ impl FromIterator<Variable> for VariableList {
 
 /// Executes a command using the ROOT_CONF variable shell
 /// configs and waits for the stdin and returns it
+
+/// Executes a command using the ROOT_CONF variable shell
+/// configs and waits for the stdout and returns it
 fn execute_command_conf_shell(
     var_name: &String,
     var_src: &PathBuf,
     command: &String,
 ) -> anyhow::Result<String> {
-    // Config to pull shell/arg from
-    let var_conf = &ROOT_CONFIG.get_config().variables;
+    // Set context of this command's execution
+    let mut context = CommandContext::default();
+    context.description = Some(format!(
+        "for variable {} defined in configuration file {:?}",
+        var_name, var_src
+    ));
 
-    // Confirmation check
-    if var_conf.confirm_shell_commands {
-        let to_continue = Confirm::new(
-            format!(
-                "Run command {} for variable {} defined in configuration file {:?}?",
-                command, var_name, var_src
-            )
-            .as_str(),
+    context.workdir = Some(var_src.parent().with_context(
+        || format!("Could not find parent directory for working directory of command execution for variable {} defined in configuration file {:?}",
+            var_name, var_src
         )
-        .with_default(false)
-        .prompt()?;
+    )?.to_path_buf());
 
-        if !to_continue {
-            bail!("Not running, aborting operation")
-        }
-    }
-
-    // Run the command under that shell
-    let output = Command::new(&var_conf.variable_shell)
-        .arg(&var_conf.shell_command_arg)
-        .arg(command)
-        .output()
-        .with_context(|| format!(
-            "While trying to execute command {} to get value for variable {} defined in configuration file {:?}",
-            command,
-            var_name,
-            var_src
-        ))?;
-
-    // Grab string and return
-    Ok(String::from_utf8(output.stdout)
-    .with_context(|| format!(
-            "While trying to convert stdout to utf-8 String of command {} to get value for variable {} defined in configuration file {:?}",
-            command,
-            var_name,
-            var_src
-        ))?)
+    execute_command(command, &context)
 }
 
 /// Extracts variable references from a string based on the variable format

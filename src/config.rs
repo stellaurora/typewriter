@@ -16,7 +16,11 @@ pub struct GlobalConfig(OnceLock<Config>);
 pub static ROOT_CONFIG: GlobalConfig = GlobalConfig(OnceLock::new());
 
 use crate::{
-    apply::Apply,
+    apply::{
+        Apply,
+        hooks::{HookList, HooksConfig},
+    },
+    command::CommandConfig,
     file::TrackedFileList,
     parse_config::ConfigLink,
     vars::{VariableConfig, VariableList},
@@ -53,6 +57,10 @@ pub struct Typewriter {
     // Files to update in the system
     #[serde(alias = "file", alias = "track", default)]
     pub files: TrackedFileList,
+
+    // Commands that are executed globally
+    #[serde(alias = "hook", alias = "command", default)]
+    pub hooks: HookList,
 }
 
 /// Global typewriter configuration options.
@@ -72,6 +80,16 @@ pub struct Config {
     // the preprocessor/variables
     #[serde(default)]
     pub variables: VariableConfig,
+
+    // Configuration options relating to
+    // commands ran in shell in configs/vars etc.
+    #[serde(default)]
+    pub commands: CommandConfig,
+
+    // Configuration options relating to hooks
+    // for running commands
+    #[serde(default)]
+    pub hooks: HooksConfig,
 }
 
 impl Deref for TypewriterConfigs {
@@ -99,20 +117,34 @@ impl FromIterator<Typewriter> for TypewriterConfigs {
 impl TypewriterConfigs {
     /// Decomposes down all of the typewriter configs
     /// into their useful data as lists.
-    pub fn flatten_data(self: Self) -> (TrackedFileList, VariableList) {
+    pub fn flatten_data(self: Self) -> (TrackedFileList, VariableList, HookList) {
         // Decompose each config and collect files and variables separately
-        let (files, variables): (Vec<_>, Vec<_>) = self
-            .0
-            .into_iter()
-            .map(|config| (config.files, config.variables))
-            .unzip();
+        let (files, variables, hooks): (Vec<_>, Vec<_>, Vec<_>) = unzip3(
+            self.0
+                .into_iter()
+                .map(|config| (config.files, config.variables, config.hooks)),
+        );
 
-        // Flatten the vectors of wrapped types
         (
+            // Flatten into inner values
             files.into_iter().flat_map(|f| f.0).collect(),
             variables.into_iter().flat_map(|v| v.0).collect(),
+            hooks.into_iter().flat_map(|h| h.0).collect(),
         )
     }
+}
+
+/// Helper function that does a unzip on three dimensions
+fn unzip3<A, B, C>(iter: impl Iterator<Item = (A, B, C)>) -> (Vec<A>, Vec<B>, Vec<C>) {
+    let mut a_vec = Vec::new();
+    let mut b_vec = Vec::new();
+    let mut c_vec = Vec::new();
+    for (a, b, c) in iter {
+        a_vec.push(a);
+        b_vec.push(b);
+        c_vec.push(c);
+    }
+    (a_vec, b_vec, c_vec)
 }
 
 impl GlobalConfig {
@@ -124,7 +156,7 @@ impl GlobalConfig {
 
     /// Get's the root config
     /// or returns an error if it could not succesfully be gotten
-    pub fn get_config(self: &Self) -> &Config {
+    pub fn get_config(self: &Self) -> &'static Config {
         ROOT_CONFIG.0.wait()
     }
 }

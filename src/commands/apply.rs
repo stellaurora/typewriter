@@ -8,7 +8,7 @@ use log::info;
 use std::path::PathBuf;
 
 use crate::{
-    apply::{apply, strategy::ApplyStrategy, variables::VariableApplying},
+    apply::{apply, hooks::HookStrategy, strategy::ApplyStrategy, variables::VariableApplying},
     cleanpath::CleanPath,
     config::ROOT_CONFIG,
     parse_config::parse_config,
@@ -43,13 +43,18 @@ pub fn apply_command(file: String, section: String) -> anyhow::Result<()> {
     let config = ROOT_CONFIG.get_config();
 
     // Grab data flattened into a list
-    let (mut total_files_list, mut total_variables_list) = configs.flatten_data();
+    let (mut total_files_list, mut total_variables_list, mut total_hooks_list) =
+        configs.flatten_data();
     total_files_list.extend(root.files.0.into_iter());
     total_variables_list.extend(root.variables.0.into_iter());
+    total_hooks_list.extend(root.hooks.0.into_iter());
 
     // Deal with variables first
     let var_map = total_variables_list.to_map()?;
     let var_strategy = VariableApplying::new(config.variables.variable_strategy, var_map);
+
+    // Create hook strategy
+    let hook_strategy = HookStrategy::new(total_hooks_list, config.hooks.clone())?;
 
     // Skip all the files with no permissions
     // TOCTOU, ensure can still handle case with no permissions later.
@@ -57,7 +62,7 @@ pub fn apply_command(file: String, section: String) -> anyhow::Result<()> {
 
     // Nothing to apply to case.
     if total_files_list.len() < 1 {
-        info!("No files referenced to apply to, operation complete.");
+        info!("No files referenced to apply to, no operation.");
         return Ok(());
     }
 
@@ -70,6 +75,7 @@ pub fn apply_command(file: String, section: String) -> anyhow::Result<()> {
         &var_strategy,
         &config.apply.temp_copy_strategy,
         &config.apply.checkdiff_strategy,
+        &hook_strategy,
     ];
 
     // Run apply

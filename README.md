@@ -47,6 +47,11 @@ Typewriter is for ``Linux`` and currently for github releases is only compiled u
 
 - Checksum Checking
   - Checksum of files from prior ``apply`` commands is checked first on any subsequent apply for files, warning user's about the destination managed file having been changed outside of the typewriter system.
+  
+- Hooks
+  - Run shell commands at different stages of the apply process.
+  - Supports global ``pre_apply`` and ``post_apply`` hooks.
+  - Supports per-file ``pre_hook`` and ``post_hook`` commands.
 
 - Fault-Tolerant
   - Files that are being modified/changed have a backup placed in a temporary directory first just in case.
@@ -60,10 +65,12 @@ Typewriter is for ``Linux`` and currently for github releases is only compiled u
 The primary/entire use of typewriter is through the command:
 
 ```
-typewriter apply --file <ROOT_CONFIG>
+typewriter apply --file <ROOT_CONFIG> --section <SECTION_NAME>
 ```
 
-This will "apply" the files managed under typewriter to their destination locations, replacing them, A default template/configuration file for typewriter is provided and can be retrieved by running:
+This will "apply" the files managed under typewriter to their destination locations, replacing them. The `--section` argument specifies the [Quill](https://github.com/stellaurora/quill) scope to extract from the TOML files (defaulting to "typewriter").
+
+A default template/configuration file for typewriter is provided and can be retrieved by running:
 
 ```
 typewriter init --file <FILE_PATH>
@@ -91,8 +98,8 @@ This is a super minimal configuration that demonstrates the basic functionality 
 # My First Typewriter Config!
 #
 # All file paths in typewriter are relative to the configuration file that they are contained in
-# other than file paths potentially contained in variables, of which the CWD is the root configuration
-# file.
+# other than file paths potentially contained in variables, of which the CWD is the parent directory
+# of the configuration file.
 
 # This indicates an actual file to be managed under typewriter
 [[file]]
@@ -141,15 +148,16 @@ file = "../typewriter_a.toml"
 
 ### Global Configuration
 
-Want to modify the functionality of typewriter? This can be done through the ``config`` table, only the root configuration file ``config`` table will be used through, in order to remove any potential confusion (will not error though, only warn about unused config).
+Want to modify the functionality of typewriter? This can be done through the `config` table, only the root configuration file `config` table will be used through, in order to remove any potential confusion (will not error though, only warn about unused config).
 
 ```toml
 # Modify some configuration options!
-# There are two main tables under config
+# There are four main tables under config
 #
 # "apply" > apply command specific things
 # "variables" > things specific to variable handling
-
+# "commands" > config for all shell command execution
+# "hooks" > config for hook execution
 
 [config.apply]
 # Disable cleaning up temporary files from the end of apply
@@ -157,6 +165,10 @@ cleanup_files=false
 
 # Change temporary/metadata file directory
 apply_metadata_dir=".myconfigmetadata"
+
+[config.commands]
+# Don't ask for confirmation before running variables or hooks
+confirm_shell_commands = false
 ```
 
 ### Variables
@@ -185,6 +197,13 @@ type="literal"
 # The literal value to replace the variable then
 value="hello world!"
 
+# A variable from a command
+[[var]]
+name="my_command_var"
+type="command"
+# This command is executed using the shell defined in [config.commands]
+value="echo 'I came from a command!'"
+
 # Variables will be applied to all files
 [[file]]
 file="source.file"
@@ -195,12 +214,57 @@ With the source file
 
 ```
 print("$TYPEWRITER{my_var}")
+print("$TYPEWRITER{my_command_var}")
 ```
 
 Then, after we run ``apply`` the destination will be
 
 ```
 print("hello world!")
+print("I came from a command!")
+```
+
+### Hooks
+
+Run custom commands during the ``apply`` process at different phases of the ``apply``.
+
+```toml
+# Hooks example
+# They can be in any config even linked ones, 
+
+# Configure global hook behavior
+[config.hooks]
+# Can be "abort" (default) or "continue"
+# which will be the strategy to use when
+# a hook fails
+failure_strategy = "continue"
+
+# Define a global hook
+# This will run after all files are applied
+[[hook]]
+command = "echo 'Finished applying all files!'"
+stage = "post_apply"
+# This specific hook will abort the apply if it fails
+continue_on_error = false
+
+# Define file-specific hooks
+[[file]]
+file = "source.file"
+destination = "~/.config/source.file"
+
+# Hooks to run *before* this file is applied
+pre_hook = [
+    "echo 'About to apply source.file...'",
+    "touch ~/.config/source.file.log"
+]
+
+# Hooks to run *after* this file is applied
+post_hook = [
+    "echo 'Finished applying source.file!' > ~/.config/source.file.log"
+]
+
+# If true, apply will continue even if this file's hooks fail
+continue_on_hook_error = false
 ```
 
 <a name="configuration"></a>
@@ -222,7 +286,7 @@ These can be referenced under the table ``[config.apply]`` in the toml and gener
 
 ##### ``auto_skip_unable_apply`` 
 
-Whether or not to automatically skip files which do not meet the initial permission check
+Whether or not to automatically skip files which do not meet the initial permission check.
 
 type: ``boolean``
 
@@ -235,7 +299,7 @@ auto_skip_unable_apply=false
 ##### ``confirm_apply``
 
 Whether or not to skip the confirmation
-prompt for the apply command
+prompt for the apply command.
 
 type: ``boolean``
 
@@ -249,7 +313,7 @@ confirm_apply=true
 ##### ``apply_metadata_dir``
 
 Directory to place metadata/temporary files in
-for the apply command
+for the apply command.
 
 type: ``string``
 
@@ -264,7 +328,7 @@ apply_metadata_dir=".typewriter"
 ##### ``temp_copy_strategy``
 
 Strategy for temporary copying functionality
-for backup if failure occurs while applying
+for backup if failure occurs while applying.
 
 type: ``string``
 
@@ -375,13 +439,11 @@ skip_checkdiff_new=false
 
 These can be referenced under the table ``[config.variables]`` in the toml and generally impact the handling/processing of variables in some way.
 
-
-
 ------------------
 
 ##### ``variable_format``
 
-Variable format string to look for in the files to replace entirely with the variable value
+Variable format string to look for in the files to replace entirely with the variable value.
 
 **Format specifiers:**
 
@@ -405,7 +467,7 @@ type: ``string``
 **Valid Options:**
 
 
-``replace_variables``: Enabled, will preprocess and replace variables found in file using ``variable_format``
+``replace_variables``: Enabled, will preprocess and replace variables found in file using ``variable_format``.
 
 ``disabled``: Do not preprocess files with variables/do not use variables.
    
@@ -415,43 +477,122 @@ type: ``string``
 variable_strategy="replace_variables"
 ```
 
+#### Commands
+
+These can be referenced under the table ``[config.commands]`` in the toml and control the execution of all shell commands (for both "command" variables and hooks).
+
 ------------------
 
-##### ``variable_shell``
+##### ``shell``
 
-For ``command`` type variables, typewriter spawns the shell provided in this config option with the argument of ``shell_command_arg`` and runs the command variable using it, storing the standard output as the true value of the variable. This configuration option determines the executable to use for the shell.
+The shell executable to use for running commands, will be spawned as a subprocess for each command.
 
 type: ``string``
 
-```toml 
-[conifg.variables]
-variable_shell="bash"
+```toml
+[config.commands]
+shell="bash"
 ```
 
------------------
+------------------
 
 ##### ``shell_command_arg``
 
-Argument to provide to the shell to be capable of running the variable command, for ``bash`` this is ``-c`` e.g. this will be provided as the first argument to the shell, and the command as the second argument.
+Argument to provide to the shell to be capable of running the command. For ``bash`` this is ``-c``.
 
 type: ``string``
 
-```toml 
-[conifg.variables]
+```toml
+[config.commands]
 shell_command_arg="-c"
 ```
 
------------------
+------------------
 
 ##### ``confirm_shell_commands``
 
-Confirm/prompt the user before running any shell commands per command.
+Confirm/prompt the user before running any shell commands (from variables or hooks).
 
 type: ``bool``
 
-```toml 
-[conifg.variables]
+```toml
+[config.commands]
 confirm_shell_commands=true
+```
+
+------------------
+
+##### ``commands_inherit_stdin``
+
+Should commands inherit the standard input of typewriter and take the standard input of the user?
+
+type: ``bool``
+
+```toml
+[config.commands]
+commands_inherit_stdin=true
+```
+
+------------------
+
+##### ``commands_inherit_stdout``
+
+Should commands inherit the standard output of typewriter and have their output displayed to the user?
+
+type: ``bool``
+
+```toml
+[config.commands]
+commands_inherit_stdout=true
+```
+
+------------------
+
+##### ``commands_inherit_stderr``
+
+Should commands inherit the stderr of typewriter and have their stderr output displayed to the user?
+
+type: ``bool``
+
+```toml
+[config.commands]
+commands_inherit_stderr=true
+```
+
+#### Hooks
+
+These can be referenced under the table ``[config.hooks]`` in the toml and control the global behavior of hooks.
+
+------------------
+
+##### ``hooks_enabled``
+
+Whether or not hooks should be enabled in typewriter.
+
+type: ``bool``
+
+```toml
+[config.hooks]
+hooks_enabled=true
+```
+
+------------------
+
+##### ``failure_strategy``
+
+The strategy to handle hook failure and determine if the ``apply`` should still continue.
+
+type: ``string``
+
+**Valid Options:**
+
+``abort``: Stop the entire apply operation (default).
+
+``continue``: Continue with the apply operation.
+
+```toml
+[config.hooks]
+failure_strategy="abort"
 ```
 
 ### Links
@@ -471,17 +612,17 @@ Can be used in any typewriter configuration file to "include" it into the overal
 
 type: ``string``
 
-```toml 
+```toml
 [[link]]
 file="other_dir/other_typewriter_config.toml"
 ```
 
 ### Variables
 
-These add individual "variables" (strings) that replace certain patterns supplied by ``variable_format`` in the configuration files managed by typewriter, each variable can be added under the array table ``[[var]]``
+These add individual "variables" (strings) that replace certain patterns supplied by ``variable_format`` in the configuration files managed by typewriter, each variable can be added under the array table ``[[var]]``.
 
 #### Aliases
-The ``[[var]]`` tables can also be defined under the aliases ``[[variable]]`` and ``[[define]]``
+The ``[[var]]`` tables can also be defined under the aliases ``[[variable]]`` and ``[[define]]``.
 
 ---------------
 
@@ -509,11 +650,11 @@ type: ``string``
 
 ``literal``: Directly insert the value as a string in all references to the variable.
 
-``command``: Execute the value as a command before preprocess occurs for all files, and insert its output in the references to the variable.
+``command``: Execute the value as a command in the shell defined in ``[config.commands]`` before preprocessing occurs for all files, and inserts its output in the references to the variable.
 
 ``environment``: Read in the value as an environment variable and insert the environment variables value in all references to the variable.
 
-```toml 
+```toml
 [[var]]
 type="literal"
 ```
@@ -524,44 +665,100 @@ type="literal"
 
 This links heavily into ``type``, but generally is what determines the content that the variables in config files will be replaced with.
 
+Can also refer to other variables (as long as it is not a cyclic dependency) using the same variable format specifier as would be used in files.
+
 type: ``string``
 
-```toml 
+```toml
 [[var]]
 value="hello world!"
 ```
 
-### Files
+### Hooks
 
-These reference two files, the source and the destination for which to read files from and to overwrite, ``typewriter`` does not create files and will error/prompt to skip if they dont already exist!.
-
-This is the core mechanism behind managing configuration and each file can be declared under the array table ``[[file]]``
+These define global commands to be run at specific stages of the apply process. Each hook can be declared under the array table ``[[hook]]``.
 
 #### Aliases
-The ``[[file]]`` tables can also be defined under the alias ``[[track]]``
+
+The array table ``[[hook]]`` can also be defined under the alias ``[[command]]``.
 
 ------------------
 
-### ``file``
+#### ``command``
+
+The shell command to execute. This will be run using the shell defined in ``[config.commands]``.
+
+type: ``string``
+
+```toml
+[[hook]]
+command="echo 'Starting apply...'"
+```
+
+------------------
+
+#### ``stage``
+
+The stage at which to execute this global hook.
+
+type: ``string``
+
+**Valid Options:**
+
+``pre_apply``: Run before any files are processed.
+
+``post_apply``: Run after all files have been processed.
+
+```toml
+[[hook]]
+stage="post_apply"
+```
+
+------------------
+
+#### ``continue_on_error``
+
+If set to ``true``, this hook failing will not stop the apply operation, overriding the global ``failure_strategy`` for this hook only.
+
+type: ``bool``
+
+```toml
+[[hook]]
+continue_on_error=true
+```
+
+### Files
+
+These reference two files, the source and the destination for which to read files from and to overwrite, `typewriter` does not create files and will error/prompt to skip if they dont already exist!.
+
+This is the core mechanism behind managing configuration and each file can be declared under the array table ``[[file]]``.
+
+#### Aliases
+
+The ``[[file]]`` tables can also be defined under the alias ``[[track]]``.
+
+------------------
+
+#### ``file``
 
 The path to the source file, paths are relative to the current configuration file the ``[[file]]`` is in, using ``~`` or ``../`` e.g is permitted and should properly resolve. This is where the content will be pulled from into the destination.
 
 type: ``string``
 
-```toml 
+```toml
 [[file]]
 file="source.file"
 ```
 
 ------------------
 
-### ``skip_if_same_content``
+#### ``skip_if_same_content``
 
-Allow checkdiff to skip this file if the source file content is found to be the same as the destination content?
+Allow checkdiff to skip this file if the source file content is found to be the same as the destination content? (Requires ``checkdiff_skip_same`` to be ``true`` in global config).
 
 type: ``bool``
 
-```toml 
+```toml
 [[file]]
 skip_if_same_content=true
 ```
@@ -574,9 +771,53 @@ The path to the destination file which will be overwritten by the source file on
 
 type: ``string``
 
-```toml 
+```toml
 [[file]]
 destination="~/.config/destination.file"
+```
+
+------------------
+
+#### ``pre_hook``
+
+A list of shell commands to execute *before* this specific file is applied. If checkdiff or another strategy which causes files to be not-applied, then this will not run.
+
+type: ``list of strings``
+
+```toml
+[[file]]
+pre_hook = [
+    "echo 'Updating config.json...'",
+    "mkdir -p .config/app"
+]
+```
+
+------------------
+
+#### ``post_hook``
+
+A list of shell commands to execute *after* this specific file is applied. If checkdiff or another strategy which causes files to be not-applied, then this will not run.
+
+type: ``list of strings`` 
+
+```toml
+[[file]]
+post_hook = [
+    "echo '...done updating config.json'"
+]
+```
+
+------------------
+
+#### ``continue_on_hook_error``
+
+If set to ``true``, the apply operation will continue even if one of this file's ``pre_hook`` or ``post_hook`` commands fail.
+
+type: ``bool``
+
+```toml
+[[file]]
+continue_on_hook_error = true
 ```
 
 <a name="license"></a>
