@@ -1,0 +1,23 @@
+# This is the default auto-generated configuration file for
+# typewriter, Please read the usage guide to learn more about
+# what can be used here!
+
+# [[link]]
+# Links to another typewriter configuration file (in same format)
+# and essentially "includes/runs" it as part of this configuration.
+[[link]]
+
+# File paths are relative to this configuration file.
+file="typewriter_other.toml"
+
+# [[file]]
+# References a file and it's intended location in the system
+# on running  apply  will "update" the intended location with the file
+# referenced
+[[file]]
+
+# Source file
+file="source.file"
+
+# Destination location
+destination="~/.config/source.file"

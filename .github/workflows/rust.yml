@@ -1,0 +1,77 @@
+name: Rust CI
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1 
+        with:
+          toolchain: nightly 
+          override: true
+          components: rust-src
+      
+      - name: Get version from Cargo.toml
+        id: version
+        run: echo "version=$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+      
+      - name: Build for release
+        run: cargo build --verbose --release
+      
+      - name: Create artefact directory
+        run: mkdir -p artefacts
+      
+      - name: Copy build artefacts with version and platform
+        run: |
+          PLATFORM="linux-x86_64"
+          VERSION="${{ steps.version.outputs.version }}"
+          cp target/release/typewriter artefacts/typewriter-${VERSION}-${PLATFORM}
+      
+      - name: Build for tiny profile
+        run: |
+          RUSTFLAGS="-Zlocation-detail=none" cargo build -Z build-std=std,panic_abort -Z build-std-features="optimize_for_size" --profile tiny --target x86_64-unknown-linux-gnu
+      
+      - name: Install UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          install-only: true
+      
+      - name: Compress tiny build with UPX
+        run: |
+          upx --ultra-brute target/x86_64-unknown-linux-gnu/tiny/typewriter -o target/x86_64-unknown-linux-gnu/tiny/typewriter-compressed
+      
+      - name: Copy tiny build artefact
+        run: |
+          PLATFORM="linux-x86_64"
+          VERSION="${{ steps.version.outputs.version }}"
+          cp target/x86_64-unknown-linux-gnu/tiny/typewriter-compressed artefacts/typewriter-${VERSION}-${PLATFORM}-tiny
+      
+      - name: Upload typewriter
+        uses: actions/upload-artifact@v4
+        with:
+          name: typewriter-${{ steps.version.outputs.version }}-linux-x86_64
+          path: artefacts/typewriter-*
+      
+      
+      # Create release only on main branch pushes
+      - name: Generate release tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: tag
+        run: echo "release_tag=v${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: Release ${{ steps.tag.outputs.release_tag }}
+          files: artefacts/typewriter-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
