@@ -99,6 +99,11 @@ pub struct Apply {
     // optionally creating missing destination files
     #[serde(default)]
     pub file_permission_strategy: FilePermissionStrategy,
+
+    // Whether to automatically confirm file creation without prompting
+    // when file_permission_strategy is set to create_if_missing
+    #[serde(default = "default_is_true")]
+    pub auto_confirm_file_creation: bool,
 }
 
 /// I think we have to sadly re-duplicate serde default here
@@ -117,6 +122,7 @@ impl Default for Apply {
             skip_checkdiff_new: Default::default(),
             checkdiff_skip_same: default_is_true(),
             file_permission_strategy: Default::default(),
+            auto_confirm_file_creation: default_is_true(),
         }
     }
 }

@@ -89,6 +89,64 @@ impl FilePermissionStrategy {
         Ok(())
     }
 
+    /// Creates a destination file and tracks it for cleanup on failure.
+    ///
+    /// Prompts user for confirmation if auto_confirm_file_creation is false.
+    /// Creates parent directories if they don't exist.
+    fn create_destination_file(file: &TrackedFile) -> anyhow::Result<()> {
+        // Prompt user if not auto-confirming
+        if !ROOT_CONFIG.get_config().apply.auto_confirm_file_creation {
+            let to_create = Confirm::new(
+                format!(
+                    "Destination file {:?} does not exist. Create it?",
+                    file.destination
+                )
+                .as_str(),
+            )
+            .with_default(true)
+            .prompt()?;
+
+            if !to_create {
+                bail!(
+                    "Aborted: User declined to create file {:?}",
+                    file.destination
+                );
+            }
+        }
+
+        // Create parent directories if needed
+        if let Some(parent) = file.destination.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!(
+                    "While creating parent directories for destination file {:?}",
+                    file.destination
+                )
+            })?;
+        }
+
+        // Create the file
+        File::create(&file.destination).with_context(|| {
+            format!(
+                "While creating destination file {:?} referenced in configuration file {:?}",
+                file.destination, file.src
+            )
+        })?;
+
+        // Track created file for cleanup on failure
+        CREATED_FILES.with(|created| {
+            if let Some(ref mut set) = *created.borrow_mut() {
+                set.insert(file.destination.clone());
+            }
+        });
+
+        info!(
+            "Created destination file {:?} for source {:?}",
+            file.destination, file.file
+        );
+
+        Ok(())
+    }
+
     /// Validates file permissions and optionally creates missing files.
     ///
     /// Checks that source file is readable and destination file is writable.
@@ -100,37 +158,10 @@ impl FilePermissionStrategy {
         src_options.read(true);
         Self::check_path_access(&file.file, &file.src, src_options, "read")?;
 
-        // Check destination file existence
-        // create if missing
+        // Check destination file existence and create if needed
         let dest_exists = file.destination.exists();
         if !dest_exists && create_missing {
-            if let Some(parent) = file.destination.parent() {
-                fs::create_dir_all(parent).with_context(|| {
-                    format!(
-                        "While creating parent directories for destination file {:?}",
-                        file.destination
-                    )
-                })?;
-            }
-
-            File::create(&file.destination).with_context(|| {
-                format!(
-                    "While creating destination file {:?} referenced in configuration file {:?}",
-                    file.destination, file.src
-                )
-            })?;
-
-            CREATED_FILES.with(|created| {
-                if let Some(ref mut set) = *created.borrow_mut() {
-                    set.insert(file.destination.clone());
-                }
-            });
-
-            info!(
-                "Created destination file {:?} for source {:?}",
-                file.destination, file.file
-            );
-
+            Self::create_destination_file(file)?;
             return Ok(());
         }
 

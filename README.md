@@ -411,6 +411,21 @@ file_permission_strategy="check_only"
 
 ------------------
 
+##### ``auto_confirm_file_creation``
+
+Whether to automatically confirm file creation without prompting when ``file_permission_strategy`` is set to ``create_if_missing``. If set to false, typewriter will prompt the user before creating each missing destination file.
+
+type: ``boolean``
+
+default: ``true``
+
+```toml
+[config.apply]
+auto_confirm_file_creation=true
+```
+
+------------------
+
 ##### ``checkdiff_strategy``
 
 Strategy of the checkdiff for checking if the file was modified out of the system just-in-case to not overwrite potential wanted files. Typewriter will prompt the user if the file was changed outside of the system (if this is not set to ``disabled``) before overwriting.
