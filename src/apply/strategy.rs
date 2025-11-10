@@ -29,4 +29,11 @@ pub trait ApplyStrategy {
         let _ = files;
         Ok(())
     }
+
+    /// This strategy will be run if the apply operation fails
+    /// to allow for cleanup or rollback
+    fn run_on_failure(self: &Self, files: &mut TrackedFileList) -> anyhow::Result<()> {
+        let _ = files;
+        Ok(())
+    }
 }

@@ -9,6 +9,7 @@ use crate::{
     apply::strategy::ApplyStrategy,
     cleanpath::CleanPath,
     command::{CommandContext, execute_command},
+    config::ROOT_CONFIG,
     file::{TrackedFile, TrackedFileList},
 };
 
@@ -130,11 +131,10 @@ impl HookDefinition {
 pub struct HookStrategy {
     pre_apply_hooks: Vec<HookDefinition>,
     post_apply_hooks: Vec<HookDefinition>,
-    config: HooksConfig,
 }
 
 impl HookStrategy {
-    pub fn new(hooks: HookList, config: HooksConfig) -> Result<Self> {
+    pub fn new(hooks: HookList) -> Result<Self> {
         // Group hooks by stage, validating stages
         let mut pre_apply_hooks = Vec::new();
         let mut post_apply_hooks = Vec::new();
@@ -149,13 +149,12 @@ impl HookStrategy {
         Ok(Self {
             pre_apply_hooks,
             post_apply_hooks,
-            config,
         })
     }
 
     /// Execute hooks for a specific stage
     fn execute_stage_hooks(&self, hooks: &[HookDefinition]) -> Result<()> {
-        if !self.config.hooks_enabled || hooks.is_empty() {
+        if !ROOT_CONFIG.get_config().hooks.hooks_enabled || hooks.is_empty() {
             return Ok(());
         }
 
@@ -207,7 +206,7 @@ impl HookStrategy {
         src_config: &Path,
         continue_on_error: bool,
     ) -> Result<()> {
-        if !self.config.hooks_enabled {
+        if !ROOT_CONFIG.get_config().hooks.hooks_enabled {
             return Ok(());
         }
 
@@ -246,7 +245,7 @@ impl HookStrategy {
         }
 
         // Use global strategy
-        match self.config.failure_strategy {
+        match ROOT_CONFIG.get_config().hooks.failure_strategy {
             FailureStrategy::Abort => {
                 bail!("Aborting apply operation due to hook failure");
             }

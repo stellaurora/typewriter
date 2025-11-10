@@ -5,7 +5,8 @@ use serde::Deserialize;
 
 use crate::{
     apply::{
-        checkdiff::FileCheckDiffStrategy, strategy::ApplyStrategy, tempcopy::TemporaryCopyStrategy,
+        checkdiff::FileCheckDiffStrategy, fileperm::FilePermissionStrategy,
+        strategy::ApplyStrategy, tempcopy::TemporaryCopyStrategy,
     },
     file::TrackedFileList,
 };
@@ -24,6 +25,9 @@ pub mod checkdiff;
 
 // Hooks/command execution at certain stages.
 pub mod hooks;
+
+// File permission checking
+pub mod fileperm;
 
 /// Configuration options to apply command
 /// files
@@ -90,6 +94,11 @@ pub struct Apply {
     // (first initialisation will always prompt for a non-disabled Strategy)
     #[serde(default)]
     pub skip_checkdiff_new: bool,
+
+    // Strategy for checking file permissions and
+    // optionally creating missing destination files
+    #[serde(default)]
+    pub file_permission_strategy: FilePermissionStrategy,
 }
 
 /// I think we have to sadly re-duplicate serde default here
@@ -107,6 +116,7 @@ impl Default for Apply {
             checkdiff_strategy: Default::default(),
             skip_checkdiff_new: Default::default(),
             checkdiff_skip_same: default_is_true(),
+            file_permission_strategy: Default::default(),
         }
     }
 }
@@ -130,32 +140,44 @@ fn default_tempfile_dir() -> PathBuf {
     PathBuf::from(".typewriter")
 }
 
-/// Run apply copy
+/// Run apply copy with atomicity and transactional behavior
 pub fn apply(
     mut files: TrackedFileList,
     strategies: Vec<&dyn ApplyStrategy>,
 ) -> anyhow::Result<()> {
-    // Run before copy strategies
-    strategies
-        .iter()
-        .map(|strategy| strategy.run_before_apply(&mut files))
-        .collect::<anyhow::Result<()>>()?;
+    let result = run_apply_strategies(&mut files, &strategies);
 
-    // Process each file
-    for mut file in &mut files.0 {
-        // Before copy individual file strategies
-        strategies
-            .iter()
-            .map(|strategy| strategy.run_before_apply_file(&mut file))
-            .collect::<anyhow::Result<()>>()?;
+    if let Err(e) = result {
+        log::error!("Apply operation failed, initiating rollback");
+        // Run rollback in reverse order to undo operations properly
+        for strategy in strategies.iter().rev() {
+            let _ = strategy.run_on_failure(&mut files);
+        }
+        return Err(e);
+    }
 
-        // After apply individual file strategies
-        strategies
-            .iter()
-            .map(|strategy| strategy.run_after_apply_file(&mut file))
-            .collect::<anyhow::Result<()>>()?;
+    Ok(())
+}
 
-        // Pretty output for user :)
+fn run_apply_strategies(
+    files: &mut TrackedFileList,
+    strategies: &[&dyn ApplyStrategy],
+) -> anyhow::Result<()> {
+    for strategy in strategies {
+        strategy.run_before_apply(files)?;
+    }
+
+    for file in &mut files.0 {
+        for strategy in strategies {
+            strategy.run_before_apply_file(file)?;
+        }
+    }
+
+    for file in &mut files.0 {
+        for strategy in strategies {
+            strategy.run_after_apply_file(file)?;
+        }
+
         println!(
             "[{}] {:?} to {:?} {}",
             White.bold().paint("APPLIED"),
@@ -165,11 +187,9 @@ pub fn apply(
         );
     }
 
-    // Run after copy strategies
-    strategies
-        .iter()
-        .map(|strategy| strategy.run_after_apply(&mut files))
-        .collect::<anyhow::Result<()>>()?;
+    for strategy in strategies {
+        strategy.run_after_apply(files)?;
+    }
 
     Ok(())
 }

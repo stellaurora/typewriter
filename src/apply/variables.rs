@@ -119,6 +119,7 @@ impl VariableApplying {
         // Open destination for writing to
         let mut destination_file = OpenOptions::new()
             .write(true)
+            .truncate(true)
             .open(&file.destination)
             .with_context(|| {
                 format!(

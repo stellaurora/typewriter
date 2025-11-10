@@ -39,8 +39,10 @@ Typewriter is for ``Linux`` and currently for github releases is only compiled u
 - Entirely ``TOML`` file-based configuration 
   - Supports "linking" (including) multiple ``TOML`` files together for a more modular configuration.
 
-- Check-First Design
-  - Checks for file permissions & errors first before making any real changes to the system.
+- Atomic & Transactional Apply
+  - All validation and permission checks happen before any files are modified.
+  - If any operation fails, all changes are automatically rolled back from backups.
+  - Either the entire apply succeeds or none of it does, ensuring system consistency.
 
 - Variables
   - Command, Environment & Literal variables for usage in configuration files managed under typewriter.
@@ -54,7 +56,8 @@ Typewriter is for ``Linux`` and currently for github releases is only compiled u
   - Supports per-file ``pre_hook`` and ``post_hook`` commands.
 
 - Fault-Tolerant
-  - Files that are being modified/changed have a backup placed in a temporary directory first just in case.
+  - Files that are being modified/changed have a backup placed in a temporary directory first just in case during the process of the copying.
+  - Automatic rollback and cleanup on failure.
 
 - Entirely Configurable
   - All of the above features can be totally/partially customised in functionality, If you don't want to check checksums then you don't need to!
@@ -328,21 +331,21 @@ apply_metadata_dir=".typewriter"
 ##### ``temp_copy_strategy``
 
 Strategy for temporary copying functionality
-for backup if failure occurs while applying.
+for backup if failure occurs while applying. Backups are created before any files are modified and used for automatic rollback on failure.
 
 type: ``string``
 
 **Valid Options:**
 
 
-``copy_current``: Copy the current working file to the temporary directory while proceeding through the operation
+``copy_all``: Copy all destination files to the temporary directory for backup before proceeding with the operation (default)
 
-``disabled``: Do not do any temporary copying
+``disabled``: Do not do any temporary copying (disables automatic rollback)
    
 
 ```toml 
-[conifg.apply]
-temp_copy_strategy="copy_current"
+[config.apply]
+temp_copy_strategy="copy_all"
 ```
 
 ------------------
@@ -355,7 +358,7 @@ to replace path seperator with, in file paths such as ``/home/me/this.file`` wit
 type: ``string``
 
 ```toml 
-[conifg.apply]
+[config.apply]
 temp_copy_path_delim="-"
 ```
 
@@ -383,6 +386,27 @@ type: ``string``
 ```toml 
 [conifg.apply]
 checkdiff_file_name=".checkdiff"
+```
+
+------------------
+
+##### ``file_permission_strategy``
+
+Strategy for checking file permissions and optionally creating missing destination files before the apply operation proceeds. This runs during the validation phase to ensure all files are accessible before any modifications are made.
+
+type: ``string``
+
+**Valid Options:**
+
+``check_only``: Only validates that all source files are readable and all destination files are writable. Will abort if any permission issues are found.
+
+``create_if_missing``: Like ``check_only``, but also creates destination files if they don't exist yet. Created files are tracked and automatically cleaned up if the apply operation fails.
+
+``disabled``: Disables file permission checking entirely.
+
+```toml
+[config.apply]
+file_permission_strategy="check_only"
 ```
 
 ------------------

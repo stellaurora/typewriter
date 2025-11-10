@@ -253,10 +253,10 @@ fn resolve_variable(
     variables: &HashMap<String, Variable>,
     resolved: &mut HashMap<String, String>,
     resolving: &mut HashSet<String>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<()> {
     // Check if already resolved
-    if let Some(value) = resolved.get(var_name) {
-        return Ok(value.clone());
+    if let Some(_) = resolved.get(var_name) {
+        return Ok(());
     }
 
     // Check for circular dependency
@@ -299,9 +299,9 @@ fn resolve_variable(
 
     // Remove from resolving set and add to resolved
     resolving.remove(var_name);
-    resolved.insert(var_name.to_string(), final_value.clone());
+    resolved.insert(var_name.to_string(), final_value);
 
-    Ok(final_value)
+    Ok(())
 }
 
 impl VariableList {
@@ -314,8 +314,8 @@ impl VariableList {
     // environment variables to be read e.g depending on
     // variable types so it can fail.
     //
-    // Now supports nested variable references and detects
-    // circular dependencies.
+    // Resolves nested variable references and detects
+    // circular dependencies (errors in that case).
     pub fn to_map(self: Self) -> anyhow::Result<HashMap<String, String>> {
         // Build a map of variable names to Variable structs
         let mut var_map: HashMap<String, Variable> = HashMap::new();

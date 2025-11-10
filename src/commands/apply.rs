@@ -54,11 +54,7 @@ pub fn apply_command(file: String, section: String) -> anyhow::Result<()> {
     let var_strategy = VariableApplying::new(config.variables.variable_strategy, var_map);
 
     // Create hook strategy
-    let hook_strategy = HookStrategy::new(total_hooks_list, config.hooks.clone())?;
-
-    // Skip all the files with no permissions
-    // TOCTOU, ensure can still handle case with no permissions later.
-    total_files_list = total_files_list.question_skip_files_no_perms()?;
+    let hook_strategy = HookStrategy::new(total_hooks_list)?;
 
     // Nothing to apply to case.
     if total_files_list.len() < 1 {
@@ -70,11 +66,12 @@ pub fn apply_command(file: String, section: String) -> anyhow::Result<()> {
         bail!("Aborting apply operation");
     }
 
-    // Get strategies
+    // ensure order is correct or bad things will happen !!
     let strategies: Vec<&dyn ApplyStrategy> = vec![
+        &config.apply.file_permission_strategy,
         &var_strategy,
-        &config.apply.temp_copy_strategy,
         &config.apply.checkdiff_strategy,
+        &config.apply.temp_copy_strategy,
         &hook_strategy,
     ];
 
